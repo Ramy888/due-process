@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Ban, BookCheck, ChevronDown, Clock, CircleDollarSign, Gavel, Megaphone, PenLine, Shield, Siren, type LucideIcon } from "lucide-react";
-import { short, txUrl, usd, type Courtroom, type DeskState, type TrailEntry } from "../desk";
+import { short, txUrl, usd, type Approval, type Courtroom, type DeskState, type TrailEntry } from "../desk";
+import { Decide } from "./Approvals";
 import { Avatar } from "./Avatar";
 import { Badge, Ext, Mono } from "./ui";
 
@@ -16,6 +17,35 @@ function Station({ icon: Icon, name, value, state }: { icon: LucideIcon; name: s
       <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500">{name}</span>
       <span className="text-xs text-stone-700">{value}</span>
     </li>
+  );
+}
+
+/** Your decision, as a bubble from the "You" station. On a phone the stations sit three to a row, so "You" is centred;
+ * wider, it is the fifth of six, at 75% of the court's width: the bubble floats right (the alerts fill the space beside
+ * it) and its arrow is placed back under the station. */
+function DecisionBubble({ approval }: { approval: Extract<Approval, { kind: "sanctions" }> }) {
+  return (
+    <div className="relative mt-3 sm:float-right sm:ml-4 sm:mr-[max(0px,calc(25%-14rem))] sm:w-[28rem]">
+      <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 shadow-lg">
+        <p className="text-sm text-amber-950">
+          <strong>Your decision.</strong> The judge's sanctions are written on-chain only if you approve them.
+        </p>
+        <ul className="mt-2 space-y-0.5 text-sm text-amber-950">
+          {approval.request.sanctions.map((s) => (
+            <li key={s.defendant}>
+              <strong>{s.defendant}</strong>:{" "}
+              {[s.slashUsd > 0 && `bond −${usd(s.slashUsd, 2)}`, s.suspendLicence && "licence suspended", s.revokeAutoApprove && "auto-approve revoked 24 h"]
+                .filter(Boolean)
+                .join(", ")}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3">
+          <Decide approval={approval} yes="Approve sanctions" />
+        </div>
+      </div>
+      <span aria-hidden className="absolute -top-1.5 left-1/2 z-10 h-3 w-3 sm:left-[max(50%,calc(28rem-25cqw))] -translate-x-1/2 rotate-45 border-l-2 border-t-2 border-amber-300 bg-amber-50" />
+    </div>
   );
 }
 
@@ -78,19 +108,20 @@ export function Court({ court, runId, state }: { court: Courtroom; runId: string
   const defenses = court.entries.filter((e) => e.kind === "case.defense").map((e) => e.data);
   const ruling = entry(court.entries, "case.ruling")?.data;
   const approval = court.entries.find((e) => e.kind.startsWith("sanctions."));
-  const waiting = state.approvals.some((a) => a.kind === "sanctions");
+  const pending = state.approvals.find((a): a is Extract<Approval, { kind: "sanctions" }> => a.kind === "sanctions");
+  const waiting = !!pending;
   const agentOf = (name: string) => (name === "Desk Chief" ? "CHIEF" : state.traders.find((t) => t.name === name)?.key ?? "");
   const exhibits: { id: string; title: string; refs: Record<string, string | null> }[] = opened?.data.exhibits ?? [];
   const guilty = ruling?.rulings.filter((r: any) => r.guilty).length ?? 0;
 
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
+    <section className="@container mb-8 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 className="font-serif text-xl font-semibold text-court">The court</h2>
         <span className="text-xs text-stone-500">Simulated proceeding. Real rules apply to these AI agents by analogy only.</span>
       </div>
 
-      <ol className="mt-5 flex items-start gap-1">
+      <ol className="mt-5 grid grid-cols-3 gap-y-4 sm:flex sm:items-start sm:gap-1">
         <Station icon={Siren} name="Surveillance" value={`${court.alerts.length} alerts`} state="done" />
         <Station icon={Megaphone} name="Prosecutor" value={charges.length ? `${charges.length} counts` : "…"} state={charges.length ? "done" : "todo"} />
         <Station icon={Shield} name="Defense" value={defenses.length ? `${defenses.length} answers` : "…"} state={defenses.length ? "done" : "todo"} />
@@ -98,6 +129,7 @@ export function Court({ court, runId, state }: { court: Courtroom; runId: string
         <Station icon={PenLine} name="You" value={approval ? (approval.kind === "sanctions.approved" ? "approved" : "declined") : waiting ? "your turn" : "…"} state={approval ? "done" : waiting ? "waiting" : "todo"} />
         <Station icon={BookCheck} name="Ledger" value={court.judgments.length ? `${court.judgments.filter((j) => j.recorded).length} judgments` : "…"} state={court.judgments.length ? "done" : "todo"} />
       </ol>
+      {pending && <DecisionBubble approval={pending} />}
 
       <ul className="mt-5 flex flex-wrap gap-2">
         {court.alerts.map((a) => (
@@ -117,7 +149,7 @@ export function Court({ court, runId, state }: { court: Courtroom; runId: string
       )}
 
       {charges.length > 0 && (
-        <ul className="mt-5 grid gap-3 md:grid-cols-2">
+        <ul className="mt-5 grid clear-both gap-3 md:grid-cols-2">
           {charges.map((c) => (
             <Count
               key={c.count}

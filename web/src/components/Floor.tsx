@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, CircleDollarSign } from "lucide-react";
 import { firstSentence, short, txUrl, usd, type BeatCard, type DeskState, type Trade } from "../desk";
 import { Avatar } from "./Avatar";
@@ -103,7 +103,7 @@ function Beat({ beat, state }: { beat: BeatCard; state: DeskState }) {
   const staged = beat.trades.some((t) => t.staged);
   const passed = beat.trades.length === 1 && beat.trades[0].decision.action === "pass";
   return (
-    <article className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+    <article className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
       <header className="flex items-start gap-3">
         <Avatar agent={beat.trader} size={44} />
         <div className="min-w-0 flex-1">
@@ -134,7 +134,7 @@ function Beat({ beat, state }: { beat: BeatCard; state: DeskState }) {
               Then buys {beat.trades[0].decision.symbol} in {beat.trades.length} small pieces, each at or under the Chief's{" "}
               {usd(state.desk.autoApproveUsd)} auto-approve line:
             </p>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 @2xl:grid-cols-3">
               {beat.trades.map((t, i) => (
                 <div key={i} className="rounded-xl border border-stone-100 bg-stone-50/60 p-3">
                   <TradeLine t={t} label={`Piece ${i + 1}`} />
@@ -150,19 +150,36 @@ function Beat({ beat, state }: { beat: BeatCard; state: DeskState }) {
   );
 }
 
-export function Floor({ beats, state }: { beats: BeatCard[]; state: DeskState }) {
-  if (beats.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-8 text-center text-sm text-stone-600">
-        Press <strong>Run the scenario</strong> to watch five AI traders, their Desk Chief and the court.
-      </div>
-    );
-  }
+/** The trades panel beside the desk map. During a live run it follows the newest trade, unless the reader scrolled up. */
+export function Floor({ beats, state, follow }: { beats: BeatCard[]; state: DeskState; follow: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  const pinned = useRef(true);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    if (beats.length === 0) pinned.current = true;
+    else if (follow && pinned.current) el.scrollTop = el.scrollHeight;
+  }, [beats, follow]);
+  const onScroll = () => {
+    const el = box.current!;
+    pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+  const trades = beats.reduce((n, b) => n + b.trades.filter((t) => t.decision.action === "trade").length, 0);
+
   return (
-    <div className="space-y-4">
-      {beats.map((b) => (
-        <Beat key={b.id} beat={b} state={state} />
-      ))}
-    </div>
+    <section aria-label="Trades" className="flex min-h-0 flex-col">
+      <h2 className="mb-2 flex items-baseline justify-between gap-2 px-1 font-serif text-lg font-semibold text-court">
+        Trades <span className="font-sans text-xs font-normal text-stone-500">{trades} proposed</span>
+      </h2>
+      <div ref={box} onScroll={onScroll} className="@container max-h-[75vh] min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain lg:max-h-none">
+        {beats.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-8 text-center text-sm text-stone-600">
+            Press <strong>Run the scenario</strong> to watch five AI traders, their Desk Chief and the court.
+          </div>
+        ) : (
+          beats.map((b) => <Beat key={b.id} beat={b} state={state} />)
+        )}
+      </div>
+    </section>
   );
 }

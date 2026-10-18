@@ -1,9 +1,11 @@
-// The hero: who is trading right now, and how far their trade got through the five gates. One glance tells the
-// story the cards below tell in detail.
-import { Gavel, Loader, CircleSlash } from "lucide-react";
-import { usd, type DeskState, type Floor, type Trade } from "../desk";
-import { Avatar } from "./Avatar";
+// The hero: the desk's traders with their budgets, who is trading right now, and how far their trade got through the
+// five gates. The trades panel beside it tells the same story in detail.
+import { ArrowDown, Gavel, Loader, CircleSlash } from "lucide-react";
+import { usd, type Approval, type DeskState, type Floor, type Trade } from "../desk";
+import { AgentRow, ChiefChip } from "./Agents";
+import { Decide } from "./Approvals";
 import { gatesFor, type Gate, type GateState } from "./Gates";
+import { Market } from "./Market";
 
 const NODE: Record<GateState, string> = {
   idle: "bg-white/5 text-white/30 ring-white/15",
@@ -46,14 +48,15 @@ function caption(name: string, t: Trade | undefined, gates: Gate[], coSignUsd: n
   return want;
 }
 
-export function DeskMap({ state, floor }: { state: DeskState; floor: Floor }) {
+export function DeskMap({ state, floor, onCourt }: { state: DeskState; floor: Floor; onCourt: () => void }) {
   const beat = floor.beats.at(-1);
   const trade = beat?.trades.at(-1);
   const gates = trade && trade.decision.action === "trade" ? gatesFor(trade) : gatesFor({ decision: { action: "pass", symbol: "", side: "buy", notionalUsd: 0, reasoning: "", evidence: [] }, staged: false }).map((g) => ({ ...g, state: "idle" as GateState, label: "" }));
   const reached = frontier(gates);
   const name = state.traders.find((t) => t.key === beat?.trader)?.name ?? "";
   const courtLive = floor.court.alerts.length > 0;
-  const finished = courtLive;
+  const active = courtLive ? undefined : beat?.trader;
+  const cosign = state.approvals.find((a): a is Extract<Approval, { kind: "cosign" }> => a.kind === "cosign");
   const sanctions: { defendant: string }[] = floor.court.entries.find((e) => e.kind === "case.ruling")?.data.sanctions ?? [];
   const awaiting = state.approvals.some((a) => a.kind === "sanctions");
   const courtCaption = floor.court.decided
@@ -67,17 +70,29 @@ export function DeskMap({ state, floor }: { state: DeskState; floor: Floor }) {
       : `Surveillance found ${floor.court.alerts.length} problems after the trades; the court is hearing the case.`;
 
   return (
-    <section className="overflow-hidden rounded-3xl bg-court p-5 text-white shadow-lg sm:p-7">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-        <ul className="flex shrink-0 justify-center gap-2 lg:flex-col" aria-label="Traders">
+    <section aria-label="The desk" className="flex flex-col gap-4 rounded-3xl bg-court p-4 text-white shadow-lg sm:p-6 lg:min-h-0 lg:overflow-y-auto">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ChiefChip state={state} />
+        <button
+          type="button"
+          onClick={onCourt}
+          disabled={!courtLive}
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-colors ${courtLive ? "bg-rose-500/25 font-semibold text-white hover:bg-rose-500/40" : "bg-white/5 text-white/40"}`}
+        >
+          <Gavel className={`h-4 w-4 ${courtLive ? "text-amber-300" : ""}`} />
+          Court · {courtLive ? `${floor.court.alerts.length} alerts` : "quiet"}
+          {courtLive && <ArrowDown className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-6 md:flex-row md:items-center">
+        <ul aria-label="Traders" className="flex shrink-0 flex-col gap-1.5 md:w-72 lg:w-[19rem] xl:w-[22rem]">
           {state.traders.map((t) => (
-            <li key={t.key} title={t.name} className={`transition-transform ${t.key === beat?.trader && !finished ? "scale-110" : ""}`}>
-              <Avatar agent={t.key} size={40} dim={t.key !== beat?.trader || finished} />
-            </li>
+            <AgentRow key={t.key} t={t} active={t.key === active} dim={!!active && t.key !== active} />
           ))}
         </ul>
 
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="relative">
             {/* the track, and how far the current trade got along it */}
             <div className="absolute left-[10%] right-[10%] top-6 h-1 rounded bg-white/10 sm:top-7" />
@@ -95,28 +110,35 @@ export function DeskMap({ state, floor }: { state: DeskState; floor: Floor }) {
               {gates.map((g) => {
                 const Icon = g.state === "running" ? Loader : g.state === "skip" && g.label !== "not needed" ? CircleSlash : g.icon;
                 return (
-                  <li key={g.key} className="flex flex-col items-center text-center">
+                  <li key={g.key} className="flex min-w-0 flex-col items-center text-center">
                     <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ring-4 transition-colors duration-500 sm:h-14 sm:w-14 ${NODE[g.state]}`}>
                       <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${g.state === "running" ? "animate-spin" : ""}`} />
                     </span>
-                    <span className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-xs">{g.name}</span>
+                    <span className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-[11px]">{g.name}</span>
                     <span className="line-clamp-2 min-h-[2rem] max-w-full px-1 text-[11px] leading-tight text-white/90 sm:text-xs">{g.label}</span>
                   </li>
                 );
               })}
             </ol>
           </div>
-          <p className="mt-4 min-h-[2.5rem] text-center text-sm text-white/90 sm:text-base" aria-live="polite">
+
+          <p className="min-h-[2.5rem] text-center text-sm text-white/90 sm:text-base" aria-live="polite">
             {courtLive ? courtCaption : caption(name, trade, gates, state.desk.coSignUsd)}
           </p>
-        </div>
+          {cosign && !courtLive && (
+            <div className="flex justify-center">
+              <Decide approval={cosign} yes={`Co-sign ${usd(cosign.request.notionalUsd)} ${cosign.request.symbol}`} dark />
+            </div>
+          )}
+          {awaiting && (
+            <div className="flex justify-center">
+              <button onClick={onCourt} className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-court shadow hover:bg-amber-300">
+                Review the sanctions <ArrowDown className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
-        <div className={`flex shrink-0 items-center justify-center gap-3 rounded-2xl px-4 py-3 transition-colors lg:flex-col ${courtLive ? "bg-rose-500/20 text-white" : "bg-white/5 text-white/40"}`}>
-          <Gavel className={`h-7 w-7 ${courtLive ? "text-amber-300" : ""}`} />
-          <div className="text-center text-xs">
-            <div className="font-semibold uppercase tracking-wide">Court</div>
-            <div>{courtLive ? `${floor.court.alerts.length} alerts` : "quiet"}</div>
-          </div>
+          <Market state={state} />
         </div>
       </div>
     </section>

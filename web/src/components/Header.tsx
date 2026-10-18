@@ -14,7 +14,7 @@ export function Header({ state, onRun, error }: { state: DeskState | null; onRun
           OFFLINE PAYMENTS: x402 signatures are checked locally and nothing is settled on-chain.
         </div>
       )}
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-court text-amber-300">
             <Scale className="h-5 w-5" />
@@ -45,7 +45,7 @@ export function Header({ state, onRun, error }: { state: DeskState | null; onRun
         </div>
       </div>
       {(error || state?.run.status === "failed") && (
-        <p className="mx-auto max-w-6xl px-4 pb-3 text-sm text-rose-700">{error ?? `Run failed: ${state?.run.error}`}</p>
+        <p className="mx-auto max-w-[1500px] px-4 pb-3 text-sm text-rose-700">{error ?? `Run failed: ${state?.run.error}`}</p>
       )}
     </header>
   );
