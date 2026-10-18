@@ -1,0 +1,29 @@
+Initializing...
+Loading settings...
+Checking RPC connectivity...
+Compiling workflow...
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  Binary hash: 69499d4ec93fc0f7c8300e16b103a89933edc80dc2c0e69177ca5282eef0b561
+  Config hash: 26981e0d28de15a0fe4d494db9dedd475a913e107e991da164682e5a1895152d
+✓ Loaded JSON from file: ./workflows/payloads/runtime/d29cf252-7e3a-4782-96e9-78688a00306f.json
+✓ Created HTTP trigger payload with 7 fields
+2026-10-18T21:17:44Z [SIMULATION] Simulator Initialized
+
+2026-10-18T21:17:44Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
+2026-10-18T21:17:44Z [USER LOG] clearance 0xf4872cb7 trader 0x1C615c1d11CD8F8A4158102D8813B2216D1B4905 base-sepolia:0x438C300F2962604f1281758d9532Ee64f4CE0201
+2026-10-18T21:17:46Z [USER LOG] BLOCKED: COORDINATED_SHILL, HOLDER_CONCENTRATION, MINT_AUTHORITY_ENABLED
+2026-10-18T21:17:47Z [USER LOG] CLEARANCE written: 0x5838e9834d40bdd8636d7df47f00d1f5b211ab68a3fe0eb46146aeda44a128fe
+
+✓ Workflow Simulation Result:
+"{\"clearanceId\":\"0xf4872cb78495549555046c2ff585c6488f5a3294afda07f81213adbf0338a25f\",\"verdict\":\"BLOCKED\",\"hits\":[{\"code\":\"COORDINATED_SHILL\",\"severity\":\"block\",\"detail\":\"4 of 6 promoting KOLs received the token from its deployer before promoting it\"},{\"code\":\"HOLDER_CONCENTRATION\",\"severity\":\"block\",\"detail\":\"Top-10 wallets hold 100.0% of supply\"},{\"code\":\"MINT_AUTHORITY_ENABLED\",\"severity\":\"block\",\"detail\":\"Creator can still mint new tokens and already holds a large share\"}],\"findings\":{\"chain\":\"base-sepolia\",\"token\":\"0x438C300F2962604f1281758d9532Ee64f4CE0201\",\"sources\":[\"evm-read\",\"blockscout\",\"ofac-sdn\"],\"sanctionedMatches\":[],\"kolsFundedByDeployer\":[\"@moonmaxi_sim\",\"@degen_dana_sim\",\"@chartwizard_sim\",\"@alpha_aisha_sim\"],\"promotingKols\":[\"@moonmaxi_sim\",\"@degen_dana_sim\",\"@chartwizard_sim\",\"@alpha_aisha_sim\",\"@solsensei_sim\",\"@whalewatch_sim\"],\"providerRisks\":[],\"top10HolderPct\":100,\"mintAuthorityEnabled\":true},\"findingsHash\":\"0xe699e73b5d1d1927c30649401bc39f017300e85c278e2f76c5b1403ab8bde2e4\",\"mode\":\"ledger\",\"txHash\":\"0x5838e9834d40bdd8636d7df47f00d1f5b211ab68a3fe0eb46146aeda44a128fe\"}"
+
+2026-10-18T21:17:47Z [SIMULATION] Execution finished signal received
+2026-10-18T21:17:47Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯
