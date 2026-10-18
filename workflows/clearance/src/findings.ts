@@ -30,8 +30,12 @@ export function solanaFindings(
 ): TokenRiskFindings {
   let f = mergeRugCheckSummary(emptyFindings("solana", token), rugcheckSummary);
   f = mergeDexScreener(f, dexscreener);
+  // The summary has no holder list, only RugCheck's risk labels: "Top 10 holders high ownership" means the top 10 hold
+  // more than 70%; "Single holder ownership" carries one wallet's share, a lower bound for the top 10.
   const risks = (rugcheckSummary.risks ?? []) as Json[];
-  if (risks.some((r) => /single holder ownership/i.test(r.name))) f = { ...f, top10HolderPct: 100 };
+  const singles = risks.filter((r) => /single holder ownership/i.test(r.name)).map((r) => parseFloat(String(r.value)));
+  if (risks.some((r) => /top 10 holders high ownership/i.test(r.name))) f = { ...f, top10HolderPct: 70 };
+  else if (singles.some((x) => Number.isFinite(x))) f = { ...f, top10HolderPct: Math.max(...singles.filter(Number.isFinite)) };
   else if (risks.some((r) => /high holder concentration/i.test(r.name))) f = { ...f, top10HolderPct: 50 };
   return finish(f, evidence, ofacSolList, []);
 }

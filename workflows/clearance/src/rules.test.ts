@@ -10,6 +10,7 @@ import {
   summarize,
   type TokenRiskFindings,
 } from "./rules";
+import { solanaFindings } from "./findings";
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8"));
 const base = (): TokenRiskFindings => emptyFindings("solana", "TOKEN");
@@ -52,6 +53,25 @@ describe("real provider data", () => {
     const f = mergeRugCheckSummary(base(), fixture("rugcheck-mint-authority-summary.json"));
     expect(codes(f)).toContain("MINT_AUTHORITY_ENABLED");
     expect(decide(f, 100).verdict).not.toBe("CLEARED");
+  });
+});
+
+describe("holder concentration from a RugCheck summary (RAY, recorded 2026-10-18)", () => {
+  const ray = () => solanaFindings("RAY", fixture("rugcheck-ray-summary.json"), fixture("dexscreener-bonk.json"), "", { promotingKols: [], counterparties: [] });
+
+  test("reads 'top 10 holders high ownership' as more than 70%, not a single holder's 22% as 100%", () => {
+    expect(ray().top10HolderPct).toBe(70);
+  });
+
+  test("flags, rather than blocks, concentration in a deep market (treasury and pool vaults look like whales)", () => {
+    const d = decide({ ...ray(), liquidityUsd: 15_829_000 }, 150);
+    expect(d.hits).toContainEqual(expect.objectContaining({ code: "HOLDER_CONCENTRATION", severity: "flag" }));
+    expect(d.verdict).toBe("FLAGGED");
+  });
+
+  test("still blocks the same concentration in a thin market", () => {
+    expect(decide({ ...ray(), liquidityUsd: 400_000 }, 150).verdict).toBe("BLOCKED");
+    expect(decide({ ...ray(), liquidityUsd: undefined }, 150).verdict).toBe("BLOCKED");
   });
 });
 

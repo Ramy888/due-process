@@ -70,10 +70,13 @@ export function decide(f: TokenRiskFindings, notionalUsd: number): ClearanceDeci
     hit("UNDISCLOSED_PROMOTION", "flag", `${funded} promoting KOL(s) received the token from its deployer`);
   }
 
+  // Provider holder lists cannot tell a project treasury or pool vault from a whale; in a deep market that is a
+  // reason to look (flag), not to block.
+  const deepMarket = f.liquidityUsd !== undefined && f.liquidityUsd >= LIMITS.deepLiquidityUsd;
   const top10 = f.top10HolderPct;
   if (top10 !== undefined) {
     if (top10 > LIMITS.concentrationBlockPct) {
-      hit("HOLDER_CONCENTRATION", "block", `Top-10 wallets hold ${top10.toFixed(1)}% of supply`);
+      hit("HOLDER_CONCENTRATION", deepMarket ? "flag" : "block", `Top-10 wallets hold ${top10.toFixed(1)}% of supply`);
     } else if (top10 > LIMITS.concentrationFlagPct) {
       hit("HOLDER_CONCENTRATION", "flag", `Top-10 wallets hold ${top10.toFixed(1)}% of supply`);
     }
