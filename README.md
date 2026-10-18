@@ -134,7 +134,7 @@ npm run build && DEPLOYMENT=local X402_OFFLINE=1 npm start -w server
 
 Headless: `DEPLOYMENT=local npm run scenario -- --cosign approve --sanctions approve --offline-payments`.
 
-**Live on Base Sepolia**: fund the desk wallet with at least 0.02 test ETH and 10 test USDC, then
+**Live on Base Sepolia**: fund the desk wallet with at least 0.002 test ETH (0.005 is comfortable) and 10 test USDC, then
 
 ```bash
 npm run deploy:base-sepolia                      # DeskLedger, ACE policies, $FROG, licences, bonds, budgets, trader USDC

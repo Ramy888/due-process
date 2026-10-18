@@ -17,7 +17,8 @@ eth_wei=$(cast balance "$DESK" --rpc-url "$RPC")
 usdc_e6=$(cast call "$USDC" "balanceOf(address)(uint256)" "$DESK" --rpc-url "$RPC" | awk '{print $1}')
 need_usdc_e6=$(python3 -I -c "print(6_000_000 + 5 * round(float('$TRADER_USDC') * 1e6))")
 echo "desk $DESK: $(cast from-wei "$eth_wei") ETH, $(python3 -I -c "print($usdc_e6/1e6)") USDC"
-if [ "$eth_wei" -lt 5000000000000000 ]; then echo "need at least 0.005 test ETH on the desk wallet"; exit 1; fi
+# deploy ≈ 0.0001 ETH and helper gas 0.0006 ETH at today's prices; the rest is margin for CRE report writes and gas spikes
+if [ "$eth_wei" -lt 2000000000000000 ]; then echo "need at least 0.002 test ETH on the desk wallet"; exit 1; fi
 if [ "$usdc_e6" -lt "$need_usdc_e6" ]; then echo "need at least $(python3 -I -c "print($need_usdc_e6/1e6)") test USDC on the desk wallet"; exit 1; fi
 
 (cd contracts && FORWARDER=$FORWARDER BOND_TOKEN=$USDC DEPLOY_NAME=base-sepolia \
