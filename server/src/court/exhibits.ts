@@ -24,8 +24,9 @@ export const lawLibrary: readonly LawReference[] = (
 
 export const CHIEF = "Desk Chief";
 const nameOf = (k: TraderKey) => traders.find((t) => t.key === k)?.name ?? k;
-/** Coarse timing so small run-to-run clock differences do not change what the court reads. */
-const within = (minutes: number) => `within ${Math.max(5, Math.ceil(minutes / 5) * 5)} minutes`;
+/** Coarse timing, so that how fast a run happens (local simulation vs. broadcasts on Base Sepolia) does not change
+ *  what the court reads and its answers replay. 15 minutes is well inside the 30-minute signal embargo. */
+const within = (minutes: number) => `within ${Math.max(15, Math.ceil(minutes / 15) * 15)} minutes`;
 
 export type MarketPrices = Record<string, { priceUsd: number; closePriceUsd: number }>;
 

@@ -97,7 +97,8 @@ describe("AI court", () => {
     const seen = canonicalJson(c.inputs);
     expect(seen).not.toMatch(/0x[0-9a-fA-F]{40}/);
     expect(seen).not.toMatch(/2026-10-18T/);
-    expect(seen).toContain("within 5 minutes");
+    expect(seen).toContain("within 15 minutes");
+    expect(seen).not.toContain("within 5 minutes");
   });
 
   it("rejects a charge citing law outside the library", async () => {
