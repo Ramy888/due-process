@@ -1,0 +1,16 @@
+1. Chief-approved $200 (News Checker):
+  clearance 0x00000000 -> ClearanceRecorded(CLEARED: no risk rule fired)
+  trade -> TradeRecorded(auto=false)
+   -> approved
+2. auto-approved $90 (Meme Hunter):
+  clearance 0x00000000 -> ClearanceRecorded(CLEARED: no risk rule fired)
+  trade -> TradeRecorded(auto=true)
+   -> auto-approved
+3. Chief refusal $400 (Whale Tracker):
+  clearance 0x00000000 -> ClearanceRecorded(CLEARED: no risk rule fired)
+  refusal -> TradeRefused(Two other traders already hold WIF; a third would concentrate the desk.)
+   -> refused
+4. $1200 with human co-sign (Dip Buyer):
+  clearance 0x00000000 -> ClearanceRecorded(CLEARED: no risk rule fired)
+  trade -> TradeRecorded(auto=false)
+   -> approved

@@ -5,6 +5,7 @@ import type { ClearanceResult } from "./clearance.js";
 import type { TrailEntry } from "./agents/trail.js";
 import type { TraderDecision } from "./agents/trader.js";
 import type { TraderKey } from "./traders.js";
+import type { ChiefOutcome } from "./scenario/chief-stage.js";
 
 export type DeskEvent =
   | { type: "clearance.started"; clearanceId: Hex; trader: Address; chain: string; token: string; notionalE6: string }
@@ -14,7 +15,10 @@ export type DeskEvent =
   | { type: "trail.entry"; entry: TrailEntry }
   | { type: "beat.started"; beatId: string; title: string; trader: TraderKey }
   | { type: "trader.decision"; beatId: string; trader: TraderKey; decision: TraderDecision }
-  | { type: "beat.finished"; beatId: string; verdict: string | null; trailId: string; trailHead: Hex };
+  | { type: "beat.finished"; beatId: string; verdict: string | null; trailId: string; trailHead: Hex }
+  | { type: "chief.decision"; beatId: string; trader: TraderKey; outcome: ChiefOutcome["outcome"]; reason: string; concerns: string[] }
+  | { type: "cosign.requested"; beatId: string; trader: TraderKey; symbol: string; notionalUsd: number }
+  | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string };
 
 const bus = new EventEmitter();
 bus.setMaxListeners(100);

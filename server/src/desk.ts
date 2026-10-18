@@ -11,6 +11,7 @@ export const DESK = {
 /** Paper positions and spend per trader, as recorded by the ledger. */
 export class DeskBook {
   private readonly spent = new Map<string, number>();
+  private readonly trades = new Map<string, number>();
   private readonly holdings = new Map<string, Record<string, number>>();
 
   record(trader: string, symbol: string, side: "buy" | "sell", usd: number): void {
@@ -20,6 +21,12 @@ export class DeskBook {
     if (h[symbol] === 0) delete h[symbol];
     this.holdings.set(trader, h);
     this.spent.set(trader, Math.max(0, (this.spent.get(trader) ?? 0) + sign * usd));
+    this.trades.set(trader, (this.trades.get(trader) ?? 0) + 1);
+  }
+
+  /** Trades recorded this session (a scenario plays out within one hour). */
+  tradeCount(trader: string): number {
+    return this.trades.get(trader) ?? 0;
   }
 
   spentUsd(trader: string): number {
