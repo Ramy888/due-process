@@ -1,0 +1,10 @@
+2026-10-18T15:30:41.717Z unpaid -> 402 {
+  scheme: 'exact',
+  network: 'eip155:84532',
+  amount: '10000',
+  asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  payTo: '0x4fAa2A586949D88C7d857a737Ace2C929dEb4f11',
+  maxTimeoutSeconds: 300,
+  extra: { name: 'USDC', version: '2' }
+}
+2026-10-18T15:30:42.117Z paid by 0x1C615c1d11CD8F8A4158102D8813B2216D1B4905 -> 402 invalid_exact_evm_insufficient_balance
