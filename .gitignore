@@ -27,3 +27,5 @@ contracts/cache/
 workflows/**/dist/
 proof/*.log.tmp
 **/.cre_build_tmp.js
+proof/runs/
+workflows/payloads/runtime/

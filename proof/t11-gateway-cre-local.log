@@ -1,0 +1,36 @@
+trader 0x1C615c1d11CD8F8A4158102D8813B2216D1B4905 pays (offline facilitator; no test USDC yet)
+[event] clearance.started
+  | Initializing...
+  | Loading settings...
+  | Checking RPC connectivity...
+  | Compiling workflow...
+  | ✓ Workflow compiled
+  | ✓ Simulation limits enabled
+  |   HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  |   Binary hash: 31a23f68c9fa99039e3f4c973b0fa06bd7e3098ae8a0e5f5d0da309d4cdf5c89
+  |   Config hash: c63c4667278e32dcfc68fa39a268892dfab830812a78cc6d2ae42fd68297a2da
+  | ✓ Loaded JSON from file: ./workflows/payloads/runtime/4d94f13c-24ee-44d1-ac08-6a182d34a791.json
+  | ✓ Created HTTP trigger payload with 7 fields
+  | 2026-10-18T18:35:43Z [SIMULATION] Simulator Initialized
+  | 2026-10-18T18:35:43Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
+  | 2026-10-18T18:35:43Z [USER LOG] clearance 0x77941ff4 trader 0x1C615c1d11CD8F8A4158102D8813B2216D1B4905 solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263
+  | 2026-10-18T18:35:44Z [USER LOG] CLEARED: no risk rule fired
+  | 2026-10-18T18:35:44Z [USER LOG] local-simulation: verdict computed; no report built, nothing written
+  | ✓ Workflow Simulation Result:
+  | "{\"clearanceId\":\"0x77941ff4bbf764f69d4118aa65e504919aad52ce50734b80d2c31d9de3ba7c42\",\"verdict\":\"CLEARED\",\"hits\":[],\"findings\":{\"chain\":\"solana\",\"token\":\"DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263\",\"sources\":[\"rugcheck\",\"dexscreener\",\"ofac-sdn\"],\"sanctionedMatches\":[],\"kolsFundedByDeployer\":[],\"promotingKols\":[\"@solsensei_sim\",\"@whalewatch_sim\"],\"providerRisks\":[{\"level\":\"warn\",\"name\":\"Mutable metadata\"}],\"riskScore\":7,\"lpLockedPct\":16.4,\"mintAuthorityEnabled\":false,\"freezeAuthorityEnabled\":false,\"creatorRugHistory\":false,\"liquidityUsd\":1370000},\"findingsHash\":\"0xd9405ed4fca6173ceaa031b38e4cc0bd4be2540bf3c0db0ee8282bac5fbce2d9\",\"mode\":\"local-simulation\",\"txHash\":null}"
+  | 2026-10-18T18:35:44Z [SIMULATION] Execution finished signal received
+  | 2026-10-18T18:35:44Z [SIMULATION] Skipping WorkflowEngineV2
+  | ╭──────────────────────────────────────────────────────╮
+  | │ Simulation complete! Ready to deploy your workflow?  │
+  | │                                                      │
+  | │ Run cre account access to request deployment access. │
+  | ╰──────────────────────────────────────────────────────╯
+[event] clearance.result
+HTTP 200 8.3s {
+ "clearanceId": "0x77941ff4bbf764f69d4118aa65e504919aad52ce50734b80d2c31d9de3ba7c42",
+ "verdict": "CLEARED",
+ "hits": [],
+ "txHash": null,
+ "log": "proof/runs/2026-10-18T15-35-36-260Z-clearance-4d94f13c.log"
+}
+settled payments (offline): 1 nonce matches clearanceId: true

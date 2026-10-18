@@ -34,11 +34,14 @@ export function clearancePaywall(opts: { payTo: Address; facilitator: Facilitato
   );
 }
 
-/** The wallet that paid for this request. Only meaningful behind the paywall, which has already verified it. */
-export function payerOf(paymentSignatureHeader: string | undefined): Address | undefined {
+export type Payment = { payer: Address; nonce: Hex };
+
+/** Who paid for this request, and the EIP-3009 nonce that makes the payment unique on-chain.
+ *  Only meaningful behind the paywall, which has already verified the signature. */
+export function paymentOf(paymentSignatureHeader: string | undefined): Payment | undefined {
   if (!paymentSignatureHeader) return undefined;
-  const decoded = JSON.parse(Buffer.from(paymentSignatureHeader, "base64").toString("utf8"));
-  return decoded?.payload?.authorization?.from;
+  const a = JSON.parse(Buffer.from(paymentSignatureHeader, "base64").toString("utf8"))?.payload?.authorization;
+  return a?.from && a?.nonce ? { payer: a.from, nonce: a.nonce } : undefined;
 }
 
 /** fetch that answers 402 challenges by signing from this trader's key. */

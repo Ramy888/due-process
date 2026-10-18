@@ -1,25 +1,18 @@
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { timingSafeEqual } from "node:crypto";
+import { privateKeyToAccount } from "viem/accounts";
+import type { Hex } from "viem";
 import { PORT, required } from "./env.js";
-import { getEvidence, putEvidence, evidenceFor } from "./evidence.js";
+import { putEvidence, evidenceFor } from "./evidence.js";
 import { personas } from "./personas.js";
+import { createApp } from "./app.js";
+import { runClearanceWithCre } from "./clearance.js";
+import { facilitatorFromEnv } from "./x402.js";
 
-const app = new Hono();
-const deskToken = required("DESK_API_TOKEN");
-
-const authorized = (header: string | undefined) => {
-  const expected = Buffer.from(`Bearer ${deskToken}`);
-  const got = Buffer.from(header ?? "");
-  return got.length === expected.length && timingSafeEqual(got, expected);
-};
-
-app.get("/health", (c) => c.json({ ok: true }));
-
-app.get("/evidence/:id", (c) => {
-  if (!authorized(c.req.header("authorization"))) return c.json({ error: "unauthorized" }, 401);
-  const e = getEvidence(c.req.param("id"));
-  return e ? c.json(e) : c.json({ error: "not found" }, 404);
+const app = createApp({
+  deskToken: required("DESK_API_TOKEN"),
+  payTo: privateKeyToAccount(required("DESK_PRIVATE_KEY") as Hex).address,
+  facilitator: facilitatorFromEnv(),
+  runClearance: runClearanceWithCre,
 });
 
 // Dev seed so the workflow can be simulated before the scenario engine exists.
