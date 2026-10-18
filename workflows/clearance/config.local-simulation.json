@@ -1,0 +1,13 @@
+{
+  "mode": "local-simulation",
+  "chainSelectorName": "ethereum-testnet-sepolia-base-1",
+  "gasLimit": "800000",
+  "deskApiUrl": "http://127.0.0.1:8787",
+  "secretOwner": "",
+  "rugcheckUrl": "https://api.rugcheck.xyz",
+  "dexscreenerUrl": "https://api.dexscreener.com",
+  "blockscoutUrl": "https://base-sepolia.blockscout.com",
+  "ofacEthUrl": "https://raw.githubusercontent.com/0xB10C/ofac-sanctioned-digital-currency-addresses/lists/sanctioned_addresses_ETH.txt",
+  "ofacSolUrl": "https://raw.githubusercontent.com/0xB10C/ofac-sanctioned-digital-currency-addresses/lists/sanctioned_addresses_SOL.txt",
+  "authorizedKeys": []
+}

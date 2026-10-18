@@ -1,0 +1,11 @@
+{
+  "_note": "SIMULATED influencer personas. Not real people. Wallets are derived from the handle and controlled by no one.",
+  "kols": [
+    { "handle": "@moonmaxi_sim", "name": "Moon Maxi", "followers": 182000, "style": "hype" },
+    { "handle": "@degen_dana_sim", "name": "Degen Dana", "followers": 96000, "style": "hype" },
+    { "handle": "@chartwizard_sim", "name": "Chart Wizard", "followers": 241000, "style": "technical" },
+    { "handle": "@alpha_aisha_sim", "name": "Alpha Aisha", "followers": 58000, "style": "insider" },
+    { "handle": "@solsensei_sim", "name": "Sol Sensei", "followers": 133000, "style": "educator" },
+    { "handle": "@whalewatch_sim", "name": "Whale Watch", "followers": 77000, "style": "onchain" }
+  ]
+}

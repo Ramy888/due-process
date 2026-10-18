@@ -1,0 +1,17 @@
+{
+ "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+ "tokenType": "",
+ "risks": [
+  {
+   "name": "Creator history of rugged tokens",
+   "value": "",
+   "description": "Creator has a history of rugging tokens.",
+   "score": 19200,
+   "level": "danger"
+  }
+ ],
+ "score": 19201,
+ "score_normalised": 59,
+ "lpLockedPct": 100,
+ "_mint": "FJia5wrrJCjRBHpxNvijZmThZBPtZD5oogBUrUi4pump"
+}

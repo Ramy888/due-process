@@ -1,0 +1,24 @@
+{
+ "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+ "tokenType": "",
+ "risks": [
+  {
+   "name": "Large Amount of LP Unlocked",
+   "value": "100.00%",
+   "description": "A large amount of LP tokens are unlocked, allowing the owner to remove liquidity at any point.",
+   "score": 10999,
+   "level": "danger"
+  },
+  {
+   "name": "Low amount of LP Providers",
+   "value": "",
+   "description": "Only a few users are providing liquidity",
+   "score": 400,
+   "level": "warn"
+  }
+ ],
+ "score": 11400,
+ "score_normalised": 52,
+ "lpLockedPct": 4.661580388367176e-11,
+ "_mint": "NtKxqCKVmCr5xxxzDUzHuxbpTcpAFfsqVZFqxPpATsu"
+}

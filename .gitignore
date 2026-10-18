@@ -2,9 +2,7 @@
 .env
 .env.*
 !.env.example
-secrets.yaml
-**/secrets.yaml
-!**/secrets.example.yaml
+# CRE secrets.yaml holds only ID→env-var names (no values), so it is committed
 
 # AI instructions and agent notes stay local
 CLAUDE.md

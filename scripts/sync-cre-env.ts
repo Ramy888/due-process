@@ -1,16 +1,32 @@
-// Copies DESK_PRIVATE_KEY from the root .env into workflows/.env as CRE_ETH_PRIVATE_KEY (the CRE CLI's signer).
-// Never prints key material.
-import { readFileSync, writeFileSync, chmodSync } from "node:fs";
+// Prepares the CRE CLI environment (workflows/.env) from the root .env without printing secrets:
+//   CRE_ETH_PRIVATE_KEY  <- DESK_PRIVATE_KEY (signer for simulate --broadcast)
+//   DESK_API_TOKEN_VAR   <- DESK_API_TOKEN   (Confidential HTTP bearer token for the desk evidence API)
+// DESK_API_TOKEN is generated into the root .env on first run.
+import { existsSync, readFileSync, writeFileSync, appendFileSync, chmodSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 
-const root = readFileSync(new URL("../.env", import.meta.url), "utf8");
-const desk = root.match(/^DESK_PRIVATE_KEY=(0x[0-9a-f]{64})$/m)?.[1];
-if (!desk) throw new Error("DESK_PRIVATE_KEY missing in .env — run scripts/gen-wallets.ts first");
+const rootPath = new URL("../.env", import.meta.url);
+let root = readFileSync(rootPath, "utf8");
+if (!/^DESK_API_TOKEN=/m.test(root)) {
+  appendFileSync(rootPath, `DESK_API_TOKEN=${randomBytes(32).toString("hex")}\n`);
+  root = readFileSync(rootPath, "utf8");
+}
+const get = (name: string) => {
+  const v = root.match(new RegExp(`^${name}=(.+)$`, "m"))?.[1];
+  if (!v) throw new Error(`${name} missing in .env`);
+  return v.trim();
+};
 
-const target = new URL("../workflows/.env", import.meta.url);
-const current = readFileSync(target, "utf8");
-const next = /^CRE_ETH_PRIVATE_KEY=.*$/m.test(current)
-  ? current.replace(/^CRE_ETH_PRIVATE_KEY=.*$/m, `CRE_ETH_PRIVATE_KEY=${desk}`)
-  : `${current.trimEnd()}\nCRE_ETH_PRIVATE_KEY=${desk}\n`;
-writeFileSync(target, next);
-chmodSync(target, 0o600);
-console.log("workflows/.env: CRE_ETH_PRIVATE_KEY set from DESK_PRIVATE_KEY");
+const targetPath = new URL("../workflows/.env", import.meta.url);
+let target = existsSync(targetPath) ? readFileSync(targetPath, "utf8") : "";
+const set = (name: string, value: string) => {
+  const line = `${name}=${value}`;
+  target = new RegExp(`^${name}=.*$`, "m").test(target)
+    ? target.replace(new RegExp(`^${name}=.*$`, "m"), line)
+    : `${target.trimEnd()}\n${line}\n`;
+};
+set("CRE_ETH_PRIVATE_KEY", get("DESK_PRIVATE_KEY"));
+set("DESK_API_TOKEN_VAR", get("DESK_API_TOKEN"));
+writeFileSync(targetPath, target);
+chmodSync(targetPath, 0o600);
+console.log("workflows/.env: CRE_ETH_PRIVATE_KEY and DESK_API_TOKEN_VAR set");

@@ -1,0 +1,414 @@
+{
+ "code": 1,
+ "message": "ok",
+ "result": {
+  "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": {
+   "balance_mutable_authority": {
+    "authority": [],
+    "status": "0"
+   },
+   "closable": {
+    "authority": [],
+    "status": "0"
+   },
+   "creators": [],
+   "default_account_state": "1",
+   "default_account_state_upgradable": {
+    "authority": [],
+    "status": "0"
+   },
+   "dex": [
+    {
+     "burn_percent": null,
+     "day": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "117159.120626181000"
+     },
+     "dex_name": "orca",
+     "fee_rate": "0.0005",
+     "id": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
+     "lp_amount": null,
+     "month": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "29191329.37873050"
+     },
+     "open_time": "0",
+     "price": "35470760.746828560005",
+     "tvl": "302991.14",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "2860120.18742502"
+     }
+    },
+    {
+     "burn_percent": 0,
+     "day": {
+      "price_max": "0.000003068273420968448",
+      "price_min": "0.000002889436906261414",
+      "volume": "13135.042130269449"
+     },
+     "dex_name": "raydium",
+     "fee_rate": "0.0015",
+     "id": "3UwfrdLTpAjxTRni1boc5HUWe6hzc4HgE5yLdvEp2Noc",
+     "lp_amount": null,
+     "month": {
+      "price_max": "0.000004373253183529533",
+      "price_min": "0.0000027879227187822354",
+      "volume": "2356669.16380852"
+     },
+     "open_time": "0",
+     "price": "0.000002928055094932717",
+     "tvl": "206453.4",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "0.0000035235519702038",
+      "price_min": "0.000002889436906261414",
+      "volume": "240569.03461118054"
+     }
+    },
+    {
+     "burn_percent": null,
+     "day": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "616.014472476293"
+     },
+     "dex_name": "orca",
+     "fee_rate": "0.01",
+     "id": "BqnpCdDLPV2pFdAaLnVidmn3G93RP2p5oRdGEY2sJGez",
+     "lp_amount": null,
+     "month": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "138853.730769667000"
+     },
+     "open_time": "0",
+     "price": "35189227.098112819105",
+     "tvl": "137693.46",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "3650.697834363940"
+     }
+    },
+    {
+     "burn_percent": null,
+     "day": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "698.252865063733"
+     },
+     "dex_name": "orca",
+     "fee_rate": "0.003",
+     "id": "3ne4mWqdYuNiYrYZC9TrA3FcfuFdErghH97vNPbjicr1",
+     "lp_amount": null,
+     "month": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "414593.537115489000"
+     },
+     "open_time": "0",
+     "price": "35377870.032490409405",
+     "tvl": "77820.78",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "21034.127073859300"
+     }
+    },
+    {
+     "burn_percent": null,
+     "day": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "552.220109651849"
+     },
+     "dex_name": "orca",
+     "fee_rate": "0.003",
+     "id": "8QaXeHBrShJTdtN1rWCccBxpSVvKksQ2PCu5nufb2zbk",
+     "lp_amount": null,
+     "month": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "51481.801149941000"
+     },
+     "open_time": "0",
+     "price": "0.000002933862950867541000",
+     "tvl": "34180.13",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "5999.474101024190"
+     }
+    },
+    {
+     "burn_percent": 0,
+     "day": {
+      "price_max": "35479104.26638655",
+      "price_min": "34039941.59748501",
+      "volume": "295.72436658847636"
+     },
+     "dex_name": "raydium",
+     "fee_rate": "0.0025",
+     "id": "GtKKKs3yaPdHbQd2aZS4SfWhy8zQ988BJGnKNndLxYsN",
+     "lp_amount": null,
+     "month": {
+      "price_max": "37861652.632844165",
+      "price_min": "28321270.096622083",
+      "volume": "268815.0130898059"
+     },
+     "open_time": "0",
+     "price": "35399962.92685209",
+     "tvl": "29757.27",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "35479104.26638655",
+      "price_min": "31667580.695658773",
+      "volume": "16576.76545427752"
+     }
+    },
+    {
+     "burn_percent": 57.94,
+     "day": {
+      "price_max": "0.000003142565805741468",
+      "price_min": "0.000002886689223779749",
+      "volume": "1075.4845974047971"
+     },
+     "dex_name": "raydium",
+     "fee_rate": "0.0025",
+     "id": "G7mw1d83ismcQJKkzt62Ug4noXCjVhu3eV7U5EMgge6Z",
+     "lp_amount": "5733549.86055",
+     "month": {
+      "price_max": "0.000004220990818500771",
+      "price_min": "0.0000028004256647010344",
+      "volume": "143030.02222231808"
+     },
+     "open_time": "1671883200",
+     "price": "0.0000029314541824126124",
+     "tvl": "23350.59",
+     "type": "Standard",
+     "week": {
+      "price_max": "0.0000035241940719500794",
+      "price_min": "0.000002886689223779749",
+      "volume": "12911.403843277561"
+     }
+    },
+    {
+     "burn_percent": 61.23,
+     "day": {
+      "price_max": "3.1971353667114274E-8",
+      "price_min": "2.7239473889018602E-8",
+      "volume": "196.9936856891182"
+     },
+     "dex_name": "raydium",
+     "fee_rate": "0.0025",
+     "id": "HVNwzt7Pxfu76KHCMQPTLuTCLTm6WnQ1esLv4eizseSv",
+     "lp_amount": "11317365371.21794",
+     "month": {
+      "price_max": "3.8240917782026777E-8",
+      "price_min": "2.5167717122327363E-8",
+      "volume": "72612.74958671207"
+     },
+     "open_time": "1671883200",
+     "price": "2.8249806258671387E-8",
+     "tvl": "17526.03",
+     "type": "Standard",
+     "week": {
+      "price_max": "3.4533964153745213E-8",
+      "price_min": "2.516771712232736E-8",
+      "volume": "6211.466582948343"
+     }
+    },
+    {
+     "burn_percent": 94.08,
+     "day": {
+      "price_max": "35440270.772401415",
+      "price_min": "34671686.847915",
+      "volume": "6.684468801579853"
+     },
+     "dex_name": "raydium",
+     "fee_rate": "0.01",
+     "id": "ALYy1HRt3fsn1S9McLWsXCoq6Ke7bwMiwZ6QYr6HvsYS",
+     "lp_amount": null,
+     "month": {
+      "price_max": "37873414.63414634",
+      "price_min": "28309503.14427537",
+      "volume": "1169.54224176997"
+     },
+     "open_time": "0",
+     "price": "35133548.16625284",
+     "tvl": "4530.42",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "35440270.772401415",
+      "price_min": "31694476.539257992",
+      "volume": "37.888202532944184"
+     }
+    },
+    {
+     "burn_percent": null,
+     "day": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "35.2173853694181000"
+     },
+     "dex_name": "orca",
+     "fee_rate": "0.01",
+     "id": "5P6n5omLbLbP4kaPGL8etqQAHEx2UCkaUyvjLDnwV4EY",
+     "lp_amount": null,
+     "month": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "3161.350704091780"
+     },
+     "open_time": "0",
+     "price": "0.000002953254038514693000",
+     "tvl": "2272.34",
+     "type": "Concentrated",
+     "week": {
+      "price_max": "-1",
+      "price_min": "-1",
+      "volume": "363.749722119466"
+     }
+    }
+   ],
+   "freezable": {
+    "authority": [],
+    "status": "0"
+   },
+   "holder_count": "1020153",
+   "holders": [
+    {
+     "account": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+     "balance": "7770515063166.43106",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0883",
+     "tag": "",
+     "token_account": "5hpfC9VBxVcoW9opCnM2PqR6YWRLBzrBpabJTZnwwNiw"
+    },
+    {
+     "account": "51yZyDSnec4xnUv7XLRVYcDyV4x3wUtzrDcRaYbmQU5j",
+     "balance": "5972593511837.95277",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0679",
+     "tag": "",
+     "token_account": "2vPvEovB1gw8bAUqasThEv6YMAdJ77AU3RxiUNqknEiw"
+    },
+    {
+     "account": "4xLpwxgYuPwPvtQjE94RLS4WZ4aD8NJYYKr2AJk99Qdg",
+     "balance": "3192383482297.66758",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0363",
+     "tag": "",
+     "token_account": "6LozHQrLbEPeJGWKpN6wnnk76GhD4bGAVSoTBE5xXpsf"
+    },
+    {
+     "account": "9RpzaFh4J8F6Qg1gjnhrhSp9eXdVDjsesZXe53qp7ubB",
+     "balance": "2688260337507.06899",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0306",
+     "tag": "",
+     "token_account": "9LHQb1Nh9U65WHgD63FgpkjgPHUfU8s54PXqwwdM8g6K"
+    },
+    {
+     "account": "EbLm4ZtRqDftrQnZaMMvnwcKjK5ef5vm1Hg3sAPv3tKi",
+     "balance": "2677127770008.68465",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0304",
+     "tag": "",
+     "token_account": "FNGhHbP4D9FtsiRpYXrr9mXjsegKJZ8exEvKAeUtgXPz"
+    },
+    {
+     "account": "CK8i4zFXkDE2KWfyg7g9S748r6mwxajbcKcyGhQMR3qQ",
+     "balance": "2438274361611.32291",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0277",
+     "tag": "",
+     "token_account": "HH85bz3qwhGqe5Yd22ty13H7oKUFoVLwsjw5KmvR5bPd"
+    },
+    {
+     "account": "8Mm46CsqxiyAputDUp2cXHg41HE3BfynTeMBDwzrMZQH",
+     "balance": "2382187651309.99460",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0271",
+     "tag": "",
+     "token_account": "6jFRDDFQDCasLcWVMtixuu1eQCDnMhCttXktVeL7cEYM"
+    },
+    {
+     "account": "3B7XAQrLoEMDEGvX8569F9GRb9PcXXocJmj5wvhhei9z",
+     "balance": "2318249903516.47446",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0263",
+     "tag": "",
+     "token_account": "EHQPpncJDsLdpskV7EfrR6pCZRkCqJJNcvgPRsBQzq8E"
+    },
+    {
+     "account": "DDrxSAP14UxBJ9Xz2EaqM9WSTuavX6SuBNtsDpiVhGr6",
+     "balance": "2217984526593.84220",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0252",
+     "tag": "",
+     "token_account": "EkJbghrin4HbD2Bx8sGQ4LWyY8DDksTnxJDsq2Tj8Hqb"
+    },
+    {
+     "account": "1tjoQzWg21ceMAhyLVs4s2Zc1Pm27mLTcJ9EfEFu7km",
+     "balance": "2155369217149.93014",
+     "is_locked": 0,
+     "locked_detail": [],
+     "percent": "0.0245",
+     "tag": "",
+     "token_account": "3bYqu63xiF13prJMhwoxozTHGeRoLdkhWXyaJEfbsdCs"
+    }
+   ],
+   "lp_holders": [],
+   "metadata": {
+    "description": "The Official Bonk Inu token",
+    "name": "Bonk",
+    "symbol": "Bonk",
+    "uri": "https://arweave.net/QPC6FYdUn-3V8ytFNuoCS85S2tHAuiDblh6u3CIZLsw"
+   },
+   "metadata_mutable": {
+    "metadata_upgrade_authority": [
+     {
+      "address": "9AhKqLR67hwapvG8SA2JFXaCshXc9nALJjpKaHZrsbkw",
+      "malicious_address": 0
+     }
+    ],
+    "status": "1"
+   },
+   "mintable": {
+    "authority": [],
+    "status": "0"
+   },
+   "non_transferable": "0",
+   "total_supply": "87994357732509.84075",
+   "transfer_fee": {},
+   "transfer_fee_upgradable": {
+    "authority": [],
+    "status": "0"
+   },
+   "transfer_hook": [],
+   "transfer_hook_upgradable": {
+    "authority": [],
+    "status": "0"
+   },
+   "trusted_token": 0
+  }
+ }
+}

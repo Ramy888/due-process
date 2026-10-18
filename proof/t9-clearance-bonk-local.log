@@ -1,0 +1,29 @@
+Initializing...
+Loading settings...
+Checking RPC connectivity...
+Compiling workflow...
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  Binary hash: 873cfc1aa7b93e16b3e90db5cd04854fde33f1734a3d63a8ef1c4bd0a2b2af02
+  Config hash: c63c4667278e32dcfc68fa39a268892dfab830812a78cc6d2ae42fd68297a2da
+✓ Loaded JSON from file: ./workflows/payloads/dev-bonk.json
+✓ Created HTTP trigger payload with 7 fields
+2026-10-18T18:17:21Z [SIMULATION] Simulator Initialized
+
+2026-10-18T18:17:21Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
+2026-10-18T18:17:21Z [USER LOG] clearance 0x00000000 trader 0x1C615c1d11CD8F8A4158102D8813B2216D1B4905 solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263
+2026-10-18T18:17:22Z [USER LOG] FLAGGED: LP_UNLOCKED
+2026-10-18T18:17:22Z [USER LOG] local-simulation: verdict computed; no report built, nothing written
+
+✓ Workflow Simulation Result:
+"{\"clearanceId\":\"0x0000000000000000000000000000000000000000000000000000000000000b01\",\"verdict\":\"FLAGGED\",\"hits\":[{\"code\":\"LP_UNLOCKED\",\"severity\":\"flag\",\"detail\":\"Only 16.3% of the liquidity pool is locked; the creator can withdraw the rest\"}],\"findings\":{\"chain\":\"solana\",\"token\":\"DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263\",\"sources\":[\"rugcheck\",\"dexscreener\",\"ofac-sdn\"],\"sanctionedMatches\":[],\"kolsFundedByDeployer\":[],\"promotingKols\":[\"@solsensei_sim\",\"@whalewatch_sim\"],\"providerRisks\":[{\"level\":\"warn\",\"name\":\"Mutable metadata\"}],\"riskScore\":7,\"lpLockedPct\":16.3,\"mintAuthorityEnabled\":false,\"freezeAuthorityEnabled\":false,\"creatorRugHistory\":false,\"liquidityUsd\":1372000},\"findingsHash\":\"0x3a8d83ad7cfa5da110f6c03641efa7cea5e8ca39cfae156d858588f13c06e78d\",\"mode\":\"local-simulation\",\"txHash\":null}"
+
+2026-10-18T18:17:22Z [SIMULATION] Execution finished signal received
+2026-10-18T18:17:22Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯

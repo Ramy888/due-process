@@ -31,14 +31,13 @@
 #       forwarder: "0x..."                          # Forwarder contract address on the chain
 
 # ==========================================================================
-staging-settings:
+local-simulation:
   rpcs:
-    - chain-name: ethereum-testnet-sepolia
-      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://sepolia.base.org
 
 # ==========================================================================
-production-settings:
+base-sepolia:
   rpcs:
-    - chain-name: ethereum-testnet-sepolia
-      url: https://ethereum-sepolia-rpc.publicnode.com
-
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://sepolia.base.org

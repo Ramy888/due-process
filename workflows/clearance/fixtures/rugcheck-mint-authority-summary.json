@@ -1,0 +1,31 @@
+{
+ "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+ "tokenType": "",
+ "risks": [
+  {
+   "name": "Mint Authority still enabled",
+   "value": "",
+   "description": "More tokens can be minted by the owner",
+   "score": 50000,
+   "level": "danger"
+  },
+  {
+   "name": "Low Liquidity",
+   "value": "$0.00",
+   "description": "Low amount of liquidity in the token pool",
+   "score": 3000,
+   "level": "danger"
+  },
+  {
+   "name": "Missing file metadata",
+   "value": "",
+   "description": "No file metadata found associated to this token",
+   "score": 500,
+   "level": "warn"
+  }
+ ],
+ "score": 53501,
+ "score_normalised": 72,
+ "lpLockedPct": 0,
+ "_mint": "6UfL5yybyasDEAYpH7smFeh4r23fkNLMDwWDG83pUzsV"
+}
