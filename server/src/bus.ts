@@ -17,10 +17,12 @@ export type DeskEvent =
   | { type: "trader.decision"; beatId: string; trader: TraderKey; decision: TraderDecision; staged: boolean }
   | { type: "beat.finished"; beatId: string; verdict: string | null; trailId: string; trailHead: Hex }
   | { type: "chief.decision"; beatId: string; trader: TraderKey; outcome: ChiefOutcome["outcome"]; reason: string; concerns: string[] }
-  | { type: "cosign.requested"; id: string; beatId: string; trader: TraderKey; symbol: string; notionalUsd: number; reason: string }
-  | { type: "cosign.decided"; id: string; approved: boolean }
+  | { type: "approval.requested"; kind: "cosign" | "sanctions"; id: string; request: object }
+  | { type: "approval.decided"; kind: "cosign" | "sanctions"; id: string; approved: boolean }
   | { type: "scenario.started"; runId: string; scenarioId: string; beats: string[] }
   | { type: "scenario.finished"; runId: string; error?: string }
+  | { type: "surveillance.alerts"; runId: string; alerts: { code: string; trader: TraderKey; symbol: string; detail: string; unreviewed: boolean }[] }
+  | { type: "case.decided"; runId: string; summary: string; approved: boolean; caseHash: Hex }
   | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string }
   | { type: "signal.sold"; signalId: string; symbol: string; seller: string; buyer: Address };
 

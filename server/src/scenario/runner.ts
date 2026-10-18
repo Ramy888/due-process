@@ -5,14 +5,20 @@ import type { Address, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { runtimeFromEnv, type AgentRuntime } from "../agents/runtime.js";
 import { emit } from "../bus.js";
-import { DeskBook } from "../desk.js";
+import { DESK, DeskBook } from "../desk.js";
 import { ROOT, required } from "../env.js";
 import { deskDomain } from "../ledger/eip712.js";
 import { writeDeskWithCre, type WriteDesk } from "../ledger/desk-writer.js";
 import type { DeskStore } from "../store.js";
 import type { TraderKey } from "../traders.js";
 import { chiefStage } from "./chief-stage.js";
-import type { CoSignQueue } from "./cosign.js";
+import type { ApprovalQueue } from "../approvals.js";
+import type { CoSignRequest } from "./chief-stage.js";
+import { tryCase } from "../court/court.js";
+import { CHIEF } from "../court/exhibits.js";
+import { enforceSanctions, type Enforcement, type SanctionRequest } from "../court/sanctions.js";
+import { surveil } from "../court/surveillance.js";
+import { traders } from "../traders.js";
 import { licenceDesk, runBeat, type BeatOutcome, type BuySignal, type RequestClearance } from "./engine.js";
 import { paidClearance } from "./paid-clearance.js";
 import { paidSignal } from "./paid-signal.js";
@@ -20,7 +26,8 @@ import { loadScenario } from "./scenario.js";
 
 export type RunnerDeps = {
   store: DeskStore;
-  coSign: CoSignQueue;
+  coSign: ApprovalQueue<CoSignRequest>;
+  sanctions: ApprovalQueue<SanctionRequest>;
   deskUrl: string;
   /** Which deployments/<name>.json signs and records against (EIP-712 domain). */
   deployment?: string;
@@ -28,7 +35,6 @@ export type RunnerDeps = {
   requestClearance?: RequestClearance;
   buySignal?: BuySignal;
   writeDesk?: WriteDesk;
-  autoApproveActive?: () => boolean;
 };
 
 const keyOf = (name: string) => required(`${name}_PRIVATE_KEY`) as Hex;
@@ -45,18 +51,24 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
   try {
     const runtime = deps.runtime ?? runtimeFromEnv();
     const book = new DeskBook();
+    const chief = privateKeyToAccount(keyOf("CHIEF"));
+    const human = privateKeyToAccount(keyOf("HUMAN_APPROVER"));
+    const domain = deskDomain(dep.chainId, dep.deskLedger);
+    const writeDesk = deps.writeDesk ?? writeDeskWithCre;
+    // A judgment against the Chief revokes its auto-approve rule for the rest of the run (24 h on-chain).
+    let autoApproveRevoked = false;
     const { policies } = await licenceDesk(runtime, deps.store, runId);
     const afterClearance = chiefStage({
       runtime,
       book,
       policies,
-      writeDesk: deps.writeDesk ?? writeDeskWithCre,
-      chief: privateKeyToAccount(keyOf("CHIEF")),
-      human: privateKeyToAccount(keyOf("HUMAN_APPROVER")),
-      domain: deskDomain(dep.chainId, dep.deskLedger),
+      writeDesk,
+      chief,
+      human,
+      domain,
       addressOf: traderAddress,
       requestCoSign: deps.coSign.request,
-      autoApproveActive: deps.autoApproveActive ?? (() => true),
+      autoApproveActive: () => !autoApproveRevoked,
       onRecorded: (t) => deps.store.recordTrade(t),
     });
     const outcomes: BeatOutcome[] = [];
@@ -84,8 +96,37 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
         ),
       );
     }
+
+    // Surveillance looks back over what this run recorded; any alert goes to court.
+    const names = Object.fromEntries(traders.map((t) => [t.key, t.name]));
+    const byAddress = new Map(traders.map((t) => [traderAddress(t.key).toLowerCase(), t.key]));
+    const signalIds = new Set(deps.store.sales(runId).map((s) => s.signalId));
+    const alerts = surveil({
+      trades: deps.store.trades(runId),
+      sales: deps.store.sales(runId),
+      signals: new Map([...signalIds].map((id) => [id, deps.store.signal(id)!])),
+      policies,
+      names,
+      traderOf: (a) => byAddress.get(a.toLowerCase()),
+      allocationUsd: DESK.allocationUsd,
+      autoApproveUsd: DESK.autoApproveUsd,
+    });
+    emit({ type: "surveillance.alerts", runId, alerts: alerts.map((a) => ({ code: a.code, trader: a.trader, symbol: a.symbol, detail: a.detail, unreviewed: a.unreviewed })) });
+
+    let enforcement: Enforcement | undefined;
+    const tried = await tryCase({ runtime, store: deps.store, policies, names, buyerName: (a) => names[byAddress.get(a.toLowerCase()) ?? ""] ?? a }, runId, alerts);
+    if (tried) {
+      const byName = new Map(traders.map((t) => [t.name, traderAddress(t.key)]));
+      enforcement = await enforceSanctions(
+        { approvals: deps.sanctions, human, domain, writeDesk, addressOf: (d) => (d === CHIEF ? chief.address : byName.get(d)!) },
+        tried.file,
+        tried.trail,
+      );
+      autoApproveRevoked ||= enforcement.revokedAutoApprove;
+      emit({ type: "case.decided", runId, summary: tried.file.ruling.summary, approved: enforcement.approved, caseHash: enforcement.caseHash });
+    }
     emit({ type: "scenario.finished", runId });
-    return { runId, outcomes, book };
+    return { runId, outcomes, book, alerts, case: tried?.file, enforcement };
   } catch (e) {
     emit({ type: "scenario.finished", runId, error: e instanceof Error ? e.message : String(e) });
     throw e;

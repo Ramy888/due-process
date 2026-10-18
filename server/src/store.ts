@@ -8,10 +8,11 @@ import { ROOT } from "./env.js";
 import type { Address, Hex } from "viem";
 import type { TraderKey } from "./traders.js";
 
-export type Signal = { id: string; seller: string; sellerAddress: Address; symbol: string; text: string; priceUsd: number; createdAt: string };
+export type Signal = { id: string; runId: string; seller: string; sellerAddress: Address; symbol: string; text: string; priceUsd: number; createdAt: string };
 export type SignalSale = { nonce: Hex; signalId: string; buyerAddress: Address; sellerAddress: Address; at: string; settlementTx: Hex | null };
 export type RecordedTrade = {
   tradeId: Hex;
+  runId: string;
   beatId: string;
   clearanceId: Hex;
   trader: TraderKey;
@@ -37,27 +38,27 @@ export class DeskStore {
       trail_id TEXT NOT NULL, seq INTEGER NOT NULL, hash TEXT NOT NULL, json TEXT NOT NULL,
       PRIMARY KEY (trail_id, seq))`);
     this.db.exec(`CREATE TABLE IF NOT EXISTS signals (
-      id TEXT PRIMARY KEY, seller TEXT NOT NULL, seller_address TEXT NOT NULL, symbol TEXT NOT NULL, text TEXT NOT NULL,
+      id TEXT PRIMARY KEY, run_id TEXT NOT NULL, seller TEXT NOT NULL, seller_address TEXT NOT NULL, symbol TEXT NOT NULL, text TEXT NOT NULL,
       price_usd REAL NOT NULL, created_at TEXT NOT NULL)`);
     this.db.exec(`CREATE TABLE IF NOT EXISTS signal_sales (
       nonce TEXT PRIMARY KEY, signal_id TEXT NOT NULL, buyer_address TEXT NOT NULL, seller_address TEXT NOT NULL,
       at TEXT NOT NULL, settlement_tx TEXT)`);
     this.db.exec(`CREATE TABLE IF NOT EXISTS desk_trades (
-      trade_id TEXT PRIMARY KEY, beat_id TEXT NOT NULL, clearance_id TEXT NOT NULL, trader TEXT NOT NULL,
+      trade_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, beat_id TEXT NOT NULL, clearance_id TEXT NOT NULL, trader TEXT NOT NULL,
       trader_address TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, notional_usd REAL NOT NULL,
       auto_approved INTEGER NOT NULL, tx_hash TEXT, at TEXT NOT NULL)`);
   }
 
   putSignal(sig: Signal): void {
     this.db
-      .prepare("INSERT INTO signals (id, seller, seller_address, symbol, text, price_usd, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .run(sig.id, sig.seller, sig.sellerAddress, sig.symbol, sig.text, sig.priceUsd, sig.createdAt);
+      .prepare("INSERT INTO signals (id, run_id, seller, seller_address, symbol, text, price_usd, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(sig.id, sig.runId, sig.seller, sig.sellerAddress, sig.symbol, sig.text, sig.priceUsd, sig.createdAt);
   }
 
   signal(id: string): Signal | undefined {
     const r = this.db.prepare("SELECT * FROM signals WHERE id = ?").get(id);
     return r
-      ? { id: String(r.id), seller: String(r.seller), sellerAddress: String(r.seller_address) as Address, symbol: String(r.symbol), text: String(r.text), priceUsd: Number(r.price_usd), createdAt: String(r.created_at) }
+      ? { id: String(r.id), runId: String(r.run_id), seller: String(r.seller), sellerAddress: String(r.seller_address) as Address, symbol: String(r.symbol), text: String(r.text), priceUsd: Number(r.price_usd), createdAt: String(r.created_at) }
       : undefined;
   }
 
@@ -73,10 +74,12 @@ export class DeskStore {
     this.db.prepare("UPDATE signal_sales SET settlement_tx = ? WHERE signal_id = ? AND buyer_address = ?").run(tx, signalId, buyer);
   }
 
-  sales(): SignalSale[] {
-    return this.db
-      .prepare("SELECT * FROM signal_sales ORDER BY at")
-      .all()
+  /** Signal sales, optionally only for signals offered in one run. */
+  sales(runId?: string): SignalSale[] {
+    const rows = runId
+      ? this.db.prepare("SELECT s.* FROM signal_sales s JOIN signals g ON g.id = s.signal_id WHERE g.run_id = ? ORDER BY s.at").all(runId)
+      : this.db.prepare("SELECT * FROM signal_sales ORDER BY at").all();
+    return rows
       .map((r) => ({
         nonce: String(r.nonce) as Hex,
         signalId: String(r.signal_id),
@@ -90,18 +93,21 @@ export class DeskStore {
   recordTrade(t: RecordedTrade): void {
     this.db
       .prepare(
-        `INSERT INTO desk_trades (trade_id, beat_id, clearance_id, trader, trader_address, symbol, side, notional_usd, auto_approved, tx_hash, at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO desk_trades (trade_id, run_id, beat_id, clearance_id, trader, trader_address, symbol, side, notional_usd, auto_approved, tx_hash, at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(t.tradeId, t.beatId, t.clearanceId, t.trader, t.traderAddress, t.symbol, t.side, t.notionalUsd, t.autoApproved ? 1 : 0, t.txHash, t.at);
+      .run(t.tradeId, t.runId, t.beatId, t.clearanceId, t.trader, t.traderAddress, t.symbol, t.side, t.notionalUsd, t.autoApproved ? 1 : 0, t.txHash, t.at);
   }
 
-  trades(): RecordedTrade[] {
-    return this.db
-      .prepare("SELECT * FROM desk_trades ORDER BY at")
-      .all()
+  /** Recorded trades, optionally only for one run. */
+  trades(runId?: string): RecordedTrade[] {
+    const rows = runId
+      ? this.db.prepare("SELECT * FROM desk_trades WHERE run_id = ? ORDER BY at").all(runId)
+      : this.db.prepare("SELECT * FROM desk_trades ORDER BY at").all();
+    return rows
       .map((r) => ({
         tradeId: String(r.trade_id) as Hex,
+        runId: String(r.run_id),
         beatId: String(r.beat_id),
         clearanceId: String(r.clearance_id) as Hex,
         trader: String(r.trader) as TraderKey,

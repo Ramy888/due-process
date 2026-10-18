@@ -6,6 +6,8 @@ export const DESK = {
   coSignUsd: 150,
   /** ACE MaxPolicy ceiling per trade, enforced on-chain. */
   maxTradeUsd: 1_500,
+  /** Test USDC each licensee posts as bond; a judgment can slash up to this. */
+  bondUsd: 1,
 } as const;
 
 /** Paper positions and spend per trader, as recorded by the ledger. */

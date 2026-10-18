@@ -18,6 +18,7 @@ describe("desk parameters", () => {
       autoApproveUsd: usd("AUTO_APPROVE"),
       coSignUsd: usd("CO_SIGN"),
       maxTradeUsd: usd("MAX_TRADE"),
+      bondUsd: usd("BOND"),
     }).toEqual(DESK);
   });
 });

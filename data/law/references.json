@@ -1,0 +1,68 @@
+{
+  "_note": "The only authorities the court agents may cite. Summaries are paraphrased, not quotations; external rules apply to these simulated AI agents by analogy only. Not legal advice.",
+  "references": [
+    {
+      "id": "LICENCE-EMBARGO",
+      "kind": "licence",
+      "title": "Desk licence terms: signal embargo",
+      "summary": "Every licence carries the desk rule: never trade a coin within 30 minutes of selling a signal on it to another agent.",
+      "source": "data/traders.json (deskRules)"
+    },
+    {
+      "id": "LICENCE-MANDATE",
+      "kind": "licence",
+      "title": "Desk licence terms: the trader's own mandate",
+      "summary": "Each trader's mandate, registered on-chain as a hash, sets its position, trade-size, liquidity and frequency limits.",
+      "source": "data/traders.json; DeskLedger.licenceOf(trader).mandateHash"
+    },
+    {
+      "id": "LICENCE-CHIEF",
+      "kind": "licence",
+      "title": "Desk Chief's licence: duty to supervise",
+      "summary": "The Desk Chief must supervise every trader and approve only trades that fit the desk. Its standing auto-approve rule lets cleared trades of $100 or less through without its review.",
+      "source": "data/traders.json (chief); DeskLedger.autoApproveLimit"
+    },
+    {
+      "id": "MICA-89",
+      "kind": "regulation",
+      "title": "MiCA (Regulation (EU) 2023/1114) Art. 89: prohibition of insider dealing",
+      "summary": "No person may use inside information about a crypto-asset to acquire or dispose of it, directly or indirectly, for its own account or for a third party.",
+      "source": "OJ L 150, 9.6.2023, Title VI"
+    },
+    {
+      "id": "MICA-91",
+      "kind": "regulation",
+      "title": "MiCA Art. 91: prohibition of market manipulation",
+      "summary": "Prohibits market manipulation involving crypto-assets, including transactions or orders that give false or misleading signals about supply, demand or price, and taking a position in a crypto-asset, promoting it, then profiting without properly disclosing the conflict.",
+      "source": "OJ L 150, 9.6.2023, Title VI"
+    },
+    {
+      "id": "MICA-92",
+      "kind": "regulation",
+      "title": "MiCA Art. 92: prevention and detection of market abuse",
+      "summary": "Persons professionally arranging or executing transactions in crypto-assets must have effective arrangements, systems and procedures to prevent and detect market abuse, and must report reasonable suspicions without delay.",
+      "source": "OJ L 150, 9.6.2023, Title VI"
+    },
+    {
+      "id": "FINRA-5270",
+      "kind": "rule",
+      "title": "FINRA Rule 5270: front running of block transactions (by analogy)",
+      "summary": "A member or associated person may not trade while in possession of material, non-public information about an imminent block transaction until that information is public or stale. Applied here by analogy to trading ahead of the buyers of a signal one has sold.",
+      "source": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/5270"
+    },
+    {
+      "id": "FINRA-3110",
+      "kind": "rule",
+      "title": "FINRA Rule 3110: supervision (by analogy)",
+      "summary": "A firm must establish and maintain a system to supervise its associated persons that is reasonably designed to achieve compliance with the rules; final responsibility for proper supervision rests with the firm.",
+      "source": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/3110"
+    },
+    {
+      "id": "SEC-10B5",
+      "kind": "rule",
+      "title": "SEC Rule 10b-5: manipulative and deceptive devices (by analogy)",
+      "summary": "In connection with the purchase or sale of a security, it is unlawful to use any device, scheme or artifice to defraud, to make untrue or misleading statements of material fact, or to engage in any practice that operates as a fraud or deceit.",
+      "source": "17 CFR 240.10b-5"
+    }
+  ]
+}

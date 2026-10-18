@@ -129,7 +129,7 @@ describe("POST /clearance", () => {
   it("sells a signal to the paying trader, pays the seller's wallet, and records the sale", async () => {
     const d = desk();
     const seller = privateKeyToAccount(generatePrivateKey()).address;
-    d.store.putSignal({ id: "sig-1", seller: "Meme Hunter", sellerAddress: seller, symbol: "POPCAT", text: "tip", priceUsd: 0.05, createdAt: "2026-10-18T12:00:00Z" });
+    d.store.putSignal({ id: "sig-1", runId: "run-1", seller: "Meme Hunter", sellerAddress: seller, symbol: "POPCAT", text: "tip", priceUsd: 0.05, createdAt: "2026-10-18T12:00:00Z" });
 
     const unpaid = await d.app.request("/signals/sig-1");
     expect(unpaid.status).toBe(402);

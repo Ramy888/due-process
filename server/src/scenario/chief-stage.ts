@@ -140,6 +140,7 @@ export const chiefStage =
     trail.append("desk-writer", "ledger.trade", { tradeId, autoApproved: auto, txHash: written.txHash, mode: written.mode, log: written.log });
     deps.onRecorded?.({
       tradeId,
+      runId: ctx.runId,
       beatId: beat.id,
       clearanceId: clearance.clearanceId,
       trader: trader.key,

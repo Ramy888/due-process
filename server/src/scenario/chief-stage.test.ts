@@ -55,6 +55,7 @@ function setup(review: object | null, opts: Partial<ChiefStageDeps> = {}) {
   const ctx = (notionalUsd: number, verdict: "CLEARED" | "FLAGGED" | "BLOCKED" = "CLEARED"): BeatContext => {
     const scenario = loadScenario("frog-day");
     return {
+      runId: "run-1",
       scenario,
       beat: scenario.beats.find((b) => b.id === "news-wif")!,
       trader: traders.find((t) => t.key === "TRADER_NEWS")!,

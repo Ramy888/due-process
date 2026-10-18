@@ -20,6 +20,7 @@ export type ClearanceOutcome = ClearanceResult & { log?: string };
 export type RequestClearance = (trader: TraderKey, body: ClearanceRequestBody) => Promise<ClearanceOutcome>;
 
 export type BeatContext = {
+  runId: string;
   scenario: Scenario;
   beat: Beat;
   trader: TraderProfile;
@@ -152,6 +153,7 @@ async function sellSignal(deps: EngineDeps, beat: Beat, seller: TraderProfile, t
   const id = `${deps.runId}-${beat.id}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
   deps.store.putSignal({
     id,
+    runId: deps.runId,
     seller: seller.name,
     sellerAddress: deps.addressOf(seller.key),
     symbol: sale.symbol,
@@ -205,6 +207,6 @@ async function clearAndAct(
     log: clearance.log ?? null,
   });
 
-  const after = deps.afterClearance ? await deps.afterClearance({ scenario, beat, trader, decision, token, clearance, trail }) : undefined;
+  const after = deps.afterClearance ? await deps.afterClearance({ runId: deps.runId, scenario, beat, trader, decision, token, clearance, trail }) : undefined;
   return { decision, clearance, after };
 }
