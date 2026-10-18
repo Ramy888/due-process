@@ -1,127 +1,167 @@
 import { useState } from "react";
-import { short, txUrl, usd, type BeatCard, type BeatItem, type DeskState } from "../desk";
-import { Badge, Card, Ext, Mono, verdictTone, type Tone } from "./ui";
+import { ChevronDown, CircleDollarSign } from "lucide-react";
+import { firstSentence, short, txUrl, usd, type BeatCard, type DeskState, type Trade } from "../desk";
+import { Avatar } from "./Avatar";
+import { GateRow, gatesFor } from "./Gates";
+import { Badge, Ext, Mono, verdictTone } from "./ui";
 
-const CHIEF_TONE: Record<string, Tone> = { approved: "green", "auto-approved": "blue", refused: "red", blocked: "gray", "cosign-declined": "amber", "rejected-by-ledger": "red" };
-const CHIEF_LABEL: Record<string, string> = {
-  approved: "Chief approved (signed)",
-  "auto-approved": "Auto-approved, no review",
-  refused: "Chief refused (signed)",
-  blocked: "Not reviewed: clearance blocked it",
-  "cosign-declined": "You declined to co-sign",
-  "rejected-by-ledger": "DeskLedger rejected it",
-};
-
-function Item({ item, state }: { item: BeatItem; state: DeskState }) {
-  const [showLog, setShowLog] = useState(false);
-  const traderName = (key: string) => state.traders.find((t) => t.key === key)?.name ?? key;
-  const byAddress = (a: string) => state.traders.find((t) => t.address.toLowerCase() === a.toLowerCase())?.name ?? short(a);
-  switch (item.type) {
-    case "decision":
-      return (
+/** Everything behind "Why?": the trader's reasoning, the check's findings and log, the Chief's reasons, the records. */
+function Details({ t }: { t: Trade }) {
+  const [log, setLog] = useState(false);
+  const c = t.clearance;
+  return (
+    <div className="mt-3 space-y-3 rounded-lg bg-stone-50 p-3 text-sm">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">Trader's reasoning</div>
+        <p className="mt-1 text-stone-700">{t.decision.reasoning}</p>
+        {t.decision.evidence.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {t.decision.evidence.map((e) => (
+              <Badge key={e}>{e}</Badge>
+            ))}
+          </div>
+        )}
+      </div>
+      {c && (
         <div>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <strong>{traderName(item.trader)}</strong>
-            {item.decision.action === "pass" ? (
-              <Badge>passes</Badge>
-            ) : (
-              <span>
-                proposes <strong>{item.decision.side.toUpperCase()} {item.decision.symbol} {usd(item.decision.notionalUsd)}</strong>
-              </span>
-            )}
-            {item.staged && <Badge tone="violet">STAGED misconduct</Badge>}
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            Chainlink check {c.verdict && <Badge tone={verdictTone(c.verdict)}>{c.verdict}</Badge>}
           </div>
-          <p className="mt-1 text-sm text-stone-600">{item.decision.reasoning}</p>
-        </div>
-      );
-    case "signal":
-      return (
-        <p className="text-sm">
-          <Badge tone="violet">x402 signal sale</Badge> {byAddress(item.buyer)} paid $0.05 for a {item.symbol} tip.
-        </p>
-      );
-    case "clearance":
-      return (
-        <div className="text-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <span>Pre-trade clearance: Chainlink CRE workflow, paid $0.01 over x402</span>
-            {item.verdict ? <Badge tone={verdictTone(item.verdict)}>{item.verdict}</Badge> : item.failed ? <Badge tone="red">failed</Badge> : <Badge>running…</Badge>}
-          </div>
-          {item.hits && item.hits.length > 0 && (
-            <ul className="mt-1 list-disc pl-5 text-stone-600">
-              {item.hits.map((h) => (
+          {c.hits && c.hits.length > 0 ? (
+            <ul className="mt-1 space-y-0.5 text-stone-700">
+              {c.hits.map((h) => (
                 <li key={h.code}>
-                  <Mono>{h.code}</Mono>: {h.detail}
+                  <Mono className="text-stone-500">{h.code}</Mono> {h.detail}
                 </li>
               ))}
             </ul>
-          )}
-          {item.failed && <p className="mt-1 text-rose-700">{item.failed}</p>}
-          {item.lines.length > 0 && (
-            <button onClick={() => setShowLog(!showLog)} className="mt-1 text-xs text-court underline decoration-stone-300 underline-offset-2">
-              {showLog ? "Hide" : "Show"} CRE simulation log ({item.lines.length} lines)
-            </button>
-          )}
-          {showLog && <pre className="mt-1 max-h-56 overflow-auto rounded bg-stone-900 p-2 text-[11px] leading-snug text-stone-100">{item.lines.join("\n")}</pre>}
+          ) : c.verdict === "CLEARED" ? (
+            <p className="mt-1 text-stone-600">No risk rule fired.</p>
+          ) : null}
+          {c.failed && <p className="mt-1 text-rose-700">{c.failed}</p>}
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
+            {c.txHash && <Ext href={txUrl(c.txHash)}>verdict on-chain {short(c.txHash)}</Ext>}
+            {c.lines.length > 0 && (
+              <button onClick={() => setLog(!log)} className="text-court underline decoration-stone-300 underline-offset-2">
+                {log ? "Hide" : "Show"} CRE workflow log
+              </button>
+            )}
+          </div>
+          {log && <pre className="mt-2 max-h-56 overflow-auto rounded bg-stone-900 p-2 text-[11px] leading-snug text-stone-100">{c.lines.join("\n")}</pre>}
         </div>
-      );
-    case "cosign":
-      return (
-        <p className="text-sm">
-          <Badge tone={item.decided ? (item.approved ? "green" : "amber") : "amber"}>
-            {item.decided ? (item.approved ? "you co-signed" : "you declined") : "waiting for your co-signature"}
-          </Badge>{" "}
-          {usd(item.notionalUsd)} {item.symbol} is above the co-sign threshold.
-        </p>
-      );
-    case "chief":
-      return (
-        <div className="text-sm">
-          <Badge tone={CHIEF_TONE[item.outcome] ?? "gray"}>{CHIEF_LABEL[item.outcome] ?? item.outcome}</Badge>
-          <p className="mt-1 text-stone-700">{item.reason}</p>
-          {item.concerns.length > 0 && (
+      )}
+      {t.chief && t.chief.outcome !== "blocked" && (
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">Desk Chief</div>
+          <p className="mt-1 text-stone-700">{t.chief.reason}</p>
+          {t.chief.concerns.length > 0 && (
             <ul className="mt-1 list-disc pl-5 text-xs text-stone-500">
-              {item.concerns.map((c) => (
-                <li key={c}>{c}</li>
+              {t.chief.concerns.map((x) => (
+                <li key={x}>{x}</li>
               ))}
             </ul>
           )}
         </div>
-      );
-    case "ledger":
-      return (
-        <p className="text-sm">
-          <Badge tone={item.recorded ? (item.mode === "ledger" ? "green" : "gray") : "red"}>
-            {item.kind} {item.recorded ? (item.mode === "ledger" ? "recorded on DeskLedger" : "encoded (local simulation)") : "not recorded"}
-          </Badge>{" "}
-          {item.txHash && <Ext href={txUrl(item.txHash)}>verify on-chain {short(item.txHash)}</Ext>}
-          {item.reason && <span className="text-rose-700"> {item.reason}</span>}
+      )}
+      {t.ledger?.txHash && (
+        <div className="text-xs">
+          <Ext href={txUrl(t.ledger.txHash)}>
+            {t.ledger.kind} on-chain {short(t.ledger.txHash)}
+          </Ext>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TradeLine({ t, label }: { t: Trade; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const d = t.decision;
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        {label && <span className="text-xs font-semibold text-stone-500">{label}</span>}
+        <span className={`${label ? "text-base" : "text-lg"} font-semibold tracking-tight text-stone-900`}>
+          {d.side === "buy" ? "Buy" : "Sell"} {d.symbol} {usd(d.notionalUsd)}
+        </span>
+      </div>
+      {!label && <p className="mt-1 text-sm italic text-stone-600">“{firstSentence(d.reasoning)}”</p>}
+      <div className="mt-3">
+        <GateRow gates={gatesFor(t)} compact={!!label} />
+      </div>
+      <button onClick={() => setOpen(!open)} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-court">
+        Why? <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <Details t={t} />}
+    </div>
+  );
+}
+
+function Beat({ beat, state }: { beat: BeatCard; state: DeskState }) {
+  const trader = state.traders.find((t) => t.key === beat.trader);
+  const nameOf = (address: string) => state.traders.find((t) => t.address.toLowerCase() === address.toLowerCase())?.name ?? short(address);
+  const staged = beat.trades.some((t) => t.staged);
+  const passed = beat.trades.length === 1 && beat.trades[0].decision.action === "pass";
+  return (
+    <article className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+      <header className="flex items-start gap-3">
+        <Avatar agent={beat.trader} size={44} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{trader?.name ?? beat.trader}</span>
+            {staged && <Badge tone="violet">STAGED misconduct</Badge>}
+            {!beat.done && <Badge tone="blue">live</Badge>}
+          </div>
+          <h3 className="font-serif text-base text-stone-600">{beat.title}</h3>
+        </div>
+      </header>
+
+      {beat.signals.length > 0 && (
+        <p className="mt-3 flex items-center gap-2 rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-900">
+          <CircleDollarSign className="h-4 w-4 shrink-0" />
+          Sold a {beat.signals[0].symbol} tip to {beat.signals.map((s) => nameOf(s.buyer)).join(" and ")} for $0.05 each, over x402.
         </p>
-      );
-  }
+      )}
+
+      <div className="mt-3 space-y-4">
+        {passed ? (
+          <p className="text-sm text-stone-600">
+            <Badge>passes</Badge> <span className="italic">“{firstSentence(beat.trades[0].decision.reasoning)}”</span>
+          </p>
+        ) : beat.trades.length > 1 ? (
+          <>
+            <p className="text-sm text-stone-600">
+              Then buys {beat.trades[0].decision.symbol} in {beat.trades.length} small pieces, each at or under the Chief's{" "}
+              {usd(state.desk.autoApproveUsd)} auto-approve line:
+            </p>
+            <div className="grid gap-4 md:grid-cols-3">
+              {beat.trades.map((t, i) => (
+                <div key={i} className="rounded-xl border border-stone-100 bg-stone-50/60 p-3">
+                  <TradeLine t={t} label={`Piece ${i + 1}`} />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          beat.trades.map((t, i) => <TradeLine key={i} t={t} />)
+        )}
+      </div>
+    </article>
+  );
 }
 
 export function Floor({ beats, state }: { beats: BeatCard[]; state: DeskState }) {
   if (beats.length === 0) {
     return (
-      <Card title="Desk floor">
-        <p className="text-sm text-stone-600">Nothing has happened yet. Run the scenario to watch five AI traders, their Desk Chief and the court.</p>
-      </Card>
+      <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 p-8 text-center text-sm text-stone-600">
+        Press <strong>Run the scenario</strong> to watch five AI traders, their Desk Chief and the court.
+      </div>
     );
   }
   return (
     <div className="space-y-4">
       {beats.map((b) => (
-        <Card key={b.id} title={b.title} aside={b.done ? <span>trail <Mono>{b.trailHead ? short(b.trailHead) : ""}</Mono></span> : "in progress"}>
-          <ol className="space-y-3 border-l-2 border-stone-100 pl-4">
-            {b.items.map((item, i) => (
-              <li key={i} className="relative">
-                <span className="absolute top-1.5 -left-[21px] h-2 w-2 rounded-full bg-stone-300" />
-                <Item item={item} state={state} />
-              </li>
-            ))}
-          </ol>
-        </Card>
+        <Beat key={b.id} beat={b} state={state} />
       ))}
     </div>
   );

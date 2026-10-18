@@ -79,15 +79,27 @@ export async function deskPost(path: string, body: unknown): Promise<Response> {
 
 // ---------------------------------------------------------------- the event stream
 
-export type BeatItem =
-  | { type: "decision"; trader: string; decision: Decision; staged: boolean }
-  | { type: "signal"; buyer: string; symbol: string }
-  | { type: "clearance"; clearanceId: string; token: string; notionalE6: string; lines: string[]; verdict?: Verdict; hits?: Hit[]; log?: string; failed?: string }
-  | { type: "cosign"; symbol: string; notionalUsd: number; decided?: boolean; approved?: boolean; id: string }
-  | { type: "chief"; outcome: string; reason: string; concerns: string[] }
-  | { type: "ledger"; kind: string; mode: string; txHash: string | null; recorded: boolean; reason: string | null; log: string };
+/** One proposed trade and what each gate did with it: fee, Chainlink check, Desk Chief, you, the ledger. */
+export type Trade = {
+  decision: Decision;
+  staged: boolean;
+  clearance?: { clearanceId: string; lines: string[]; verdict?: Verdict; hits?: Hit[]; log?: string; failed?: string; txHash?: string | null };
+  chief?: { outcome: string; reason: string; concerns: string[] };
+  cosign?: { id: string; state: "pending" | "approved" | "declined" };
+  ledger?: { kind: string; mode: string; txHash: string | null; recorded: boolean; reason: string | null; log: string };
+};
 
-export type BeatCard = { id: string; title: string; trader: string; items: BeatItem[]; done: boolean; trailId?: string; trailHead?: string };
+export type BeatCard = {
+  id: string;
+  title: string;
+  trader: string;
+  trades: Trade[];
+  /** x402 signal sales made in this beat (buyer address). */
+  signals: { buyer: string; symbol: string }[];
+  done: boolean;
+  trailId?: string;
+  trailHead?: string;
+};
 
 export type TrailEntry = { trailId: string; seq: number; at: string; agent: string; kind: string; data: any; prevHash: string; hash: string };
 
@@ -98,23 +110,24 @@ export type Courtroom = {
   judgments: { kind: string; txHash: string | null; recorded: boolean; reason: string | null; mode: string }[];
 };
 
-export type Floor = { runId: string | null; finished: boolean; error?: string; beats: BeatCard[]; court: Courtroom; licences: TrailEntry[] };
+export type Floor = { runId: string | null; finished: boolean; error?: string; beats: BeatCard[]; court: Courtroom };
 
-const empty = (): Floor => ({ runId: null, finished: false, beats: [], court: { alerts: [], entries: [], judgments: [] }, licences: [] });
+const empty = (): Floor => ({ runId: null, finished: false, beats: [], court: { alerts: [], entries: [], judgments: [] } });
 
 type Ev = { type: string; [k: string]: any };
 
-function updateLast(beats: BeatCard[], f: (b: BeatCard) => BeatCard): BeatCard[] {
-  if (beats.length === 0) return beats;
-  return [...beats.slice(0, -1), f(beats[beats.length - 1])];
-}
+const onLastBeat = (floor: Floor, f: (b: BeatCard) => BeatCard): Floor =>
+  floor.beats.length === 0 ? floor : { ...floor, beats: [...floor.beats.slice(0, -1), f(floor.beats[floor.beats.length - 1])] };
 
-function updateClearance(beats: BeatCard[], clearanceId: string, f: (c: Extract<BeatItem, { type: "clearance" }>) => BeatItem): BeatCard[] {
-  return beats.map((b) => ({
-    ...b,
-    items: b.items.map((i) => (i.type === "clearance" && i.clearanceId === clearanceId ? f(i) : i)),
-  }));
-}
+const onLastTrade = (floor: Floor, f: (t: Trade) => Trade): Floor =>
+  onLastBeat(floor, (b) => (b.trades.length === 0 ? b : { ...b, trades: [...b.trades.slice(0, -1), f(b.trades[b.trades.length - 1])] }));
+
+const onTrade = (floor: Floor, match: (t: Trade) => boolean, f: (t: Trade) => Trade): Floor => ({
+  ...floor,
+  beats: floor.beats.map((b) => ({ ...b, trades: b.trades.map((t) => (match(t) ? f(t) : t)) })),
+});
+
+const byClearance = (id: string) => (t: Trade) => t.clearance?.clearanceId === id;
 
 export function reduceFloor(floor: Floor, e: Ev): Floor {
   switch (e.type) {
@@ -123,40 +136,35 @@ export function reduceFloor(floor: Floor, e: Ev): Floor {
     case "scenario.finished":
       return { ...floor, finished: true, error: e.error };
     case "beat.started":
-      return { ...floor, beats: [...floor.beats, { id: e.beatId, title: e.title, trader: e.trader, items: [], done: false }] };
+      return { ...floor, beats: [...floor.beats, { id: e.beatId, title: e.title, trader: e.trader, trades: [], signals: [], done: false }] };
     case "beat.finished":
       return { ...floor, beats: floor.beats.map((b) => (b.id === e.beatId ? { ...b, done: true, trailId: e.trailId, trailHead: e.trailHead } : b)) };
     case "trader.decision":
-      return { ...floor, beats: updateLast(floor.beats, (b) => ({ ...b, items: [...b.items, { type: "decision", trader: e.trader, decision: e.decision, staged: e.staged }] })) };
+      return onLastBeat(floor, (b) => ({ ...b, trades: [...b.trades, { decision: e.decision, staged: !!e.staged }] }));
     case "signal.sold":
-      return { ...floor, beats: updateLast(floor.beats, (b) => ({ ...b, items: [...b.items, { type: "signal", buyer: e.buyer, symbol: e.symbol }] })) };
+      return onLastBeat(floor, (b) => ({ ...b, signals: [...b.signals, { buyer: e.buyer, symbol: e.symbol }] }));
     case "clearance.started":
-      return {
-        ...floor,
-        beats: updateLast(floor.beats, (b) => ({ ...b, items: [...b.items, { type: "clearance", clearanceId: e.clearanceId, token: e.token, notionalE6: e.notionalE6, lines: [] }] })),
-      };
+      return onLastTrade(floor, (t) => ({ ...t, clearance: { clearanceId: e.clearanceId, lines: [] } }));
     case "cre.line":
-      return { ...floor, beats: updateClearance(floor.beats, e.clearanceId, (c) => ({ ...c, lines: [...c.lines, e.line] })) };
+      return onTrade(floor, byClearance(e.clearanceId), (t) => ({ ...t, clearance: { ...t.clearance!, lines: [...t.clearance!.lines, e.line] } }));
     case "clearance.result":
-      return { ...floor, beats: updateClearance(floor.beats, e.result.clearanceId, (c) => ({ ...c, verdict: e.result.verdict, hits: e.result.hits, log: e.log })) };
+      return onTrade(floor, byClearance(e.result.clearanceId), (t) => ({
+        ...t,
+        clearance: { ...t.clearance!, verdict: e.result.verdict, hits: e.result.hits, log: e.log, txHash: e.result.txHash },
+      }));
     case "clearance.failed":
-      return { ...floor, beats: updateClearance(floor.beats, e.clearanceId, (c) => ({ ...c, failed: e.error })) };
+      return onTrade(floor, byClearance(e.clearanceId), (t) => ({ ...t, clearance: { ...t.clearance!, failed: e.error } }));
     case "approval.requested":
-      if (e.kind !== "cosign") return floor;
-      return {
-        ...floor,
-        beats: updateLast(floor.beats, (b) => ({ ...b, items: [...b.items, { type: "cosign", id: e.id, symbol: e.request.symbol, notionalUsd: e.request.notionalUsd }] })),
-      };
+      return e.kind === "cosign" ? onLastTrade(floor, (t) => ({ ...t, cosign: { id: e.id, state: "pending" } })) : floor;
     case "approval.decided":
-      return {
-        ...floor,
-        beats: floor.beats.map((b) => ({ ...b, items: b.items.map((i) => (i.type === "cosign" && i.id === e.id ? { ...i, decided: true, approved: e.approved } : i)) })),
-      };
+      return onTrade(floor, (t) => t.cosign?.id === e.id, (t) => ({ ...t, cosign: { id: e.id, state: e.approved ? "approved" : "declined" } }));
     case "chief.decision":
-      return { ...floor, beats: updateLast(floor.beats, (b) => ({ ...b, items: [...b.items, { type: "chief", outcome: e.outcome, reason: e.reason, concerns: e.concerns }] })) };
+      // a declined co-signature arrives as a later Chief event; keep the Chief's own approval and mark the human's "no"
+      if (e.outcome === "cosign-declined") return onLastTrade(floor, (t) => ({ ...t, cosign: { id: t.cosign?.id ?? "", state: "declined" } }));
+      return onLastTrade(floor, (t) => ({ ...t, chief: { outcome: e.outcome, reason: e.reason, concerns: e.concerns } }));
     case "ledger.write":
       if (e.beatId === "court") return { ...floor, court: { ...floor.court, judgments: [...floor.court.judgments, e as any] } };
-      return { ...floor, beats: updateLast(floor.beats, (b) => ({ ...b, items: [...b.items, { ...(e as any), type: "ledger" }] })) };
+      return onLastTrade(floor, (t) => ({ ...t, ledger: { kind: e.kind, mode: e.mode, txHash: e.txHash, recorded: e.recorded, reason: e.reason, log: e.log } }));
     case "surveillance.alerts":
       return { ...floor, court: { ...floor.court, alerts: e.alerts } };
     case "case.decided":
@@ -164,7 +172,6 @@ export function reduceFloor(floor: Floor, e: Ev): Floor {
     case "trail.entry": {
       const entry = e.entry as TrailEntry;
       if (entry.kind.startsWith("case.") || entry.kind.startsWith("sanctions.")) return { ...floor, court: { ...floor.court, entries: [...floor.court.entries, entry] } };
-      if (entry.kind === "mandate.compiled") return { ...floor, licences: [...floor.licences, entry] };
       return floor;
     }
     default:
@@ -195,3 +202,19 @@ export const usd = (n: number, digits = 0) => `$${n.toLocaleString("en-US", { mi
 export const short = (h: string, n = 6) => `${h.slice(0, n + 2)}…${h.slice(-4)}`;
 export const txUrl = (hash: string) => `https://sepolia.basescan.org/tx/${hash}`;
 export const addressUrl = (a: string) => `https://sepolia.basescan.org/address/${a}`;
+
+/** The first sentence: the one-line summary on cards (the full text stays one click away). */
+export const firstSentence = (text: string) => {
+  const m = text.match(/^.*?[.!?](\s|$)/);
+  return (m ? m[0] : text).trim();
+};
+
+/** The five desk agents and the Chief: a colour and initials each (no emoji: they render differently per OS). */
+export const AGENT_STYLE: Record<string, { initials: string; color: string; soft: string }> = {
+  TRADER_KOL: { initials: "KN", color: "#7c3aed", soft: "#ede9fe" },
+  TRADER_WHALE: { initials: "WT", color: "#0369a1", soft: "#e0f2fe" },
+  TRADER_NEWS: { initials: "NC", color: "#047857", soft: "#d1fae5" },
+  TRADER_MEME: { initials: "MH", color: "#c2410c", soft: "#ffedd5" },
+  TRADER_DIP: { initials: "DB", color: "#a16207", soft: "#fef3c7" },
+  CHIEF: { initials: "DC", color: "#1f2a44", soft: "#e2e8f0" },
+};
