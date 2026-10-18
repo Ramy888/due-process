@@ -1,0 +1,1 @@
+{"kind":"refusal","refusal":{"clearanceId":"0x0000000000000000000000000000000000000000000000000000000000000b01","trader":"0x1C615c1d11CD8F8A4158102D8813B2216D1B4905","trailHash":"0x1111111111111111111111111111111111111111111111111111111111111111"},"reason":"Two other traders already hold this token; the desk would be too concentrated.","chiefSig":"0x"}

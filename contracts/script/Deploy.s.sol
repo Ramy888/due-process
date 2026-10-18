@@ -35,17 +35,20 @@ contract Deploy is Script {
     uint256 constant BOND = 1e6; // 1 test USDC per licensee
     uint256 constant GAS_TOPUP = 0.0005 ether;
 
-    string[6] KOLS =
-        ["@moonmaxi_sim", "@degen_dana_sim", "@chartwizard_sim", "@alpha_aisha_sim", "@solsensei_sim", "@whalewatch_sim"];
-    string[5] TRADER_KEYS = ["TRADER_KOL", "TRADER_WHALE", "TRADER_NEWS", "TRADER_MEME", "TRADER_DIP"];
-    string[5] TRADER_NAMES = ["KOL Narrative", "Whale Tracker", "News Checker", "Meme Hunter", "Dip Buyer"];
-    string[5] MANDATES = [
-        "Trade only on narratives at least 3 trusted voices share. Max 5% of allocation per position.",
-        "Follow large wallet inflows only when the token has over $1M liquidity.",
-        "Trade only on news confirmed by two independent sources.",
-        "Meme tokens allowed; never trade ahead of a signal you sold.",
-        "Buy dips over 15% on tokens with over $1M liquidity; exit at +10% or -7%."
-    ];
+    uint256 constant N_TRADERS = 5;
+
+    /// Licence texts and persona handles come from data/ so the on-chain mandate hashes match what the server compiles.
+    function dataFile(string memory name) internal view returns (string memory) {
+        return vm.readFile(string.concat(vm.projectRoot(), "/../data/", name));
+    }
+
+    function field(string memory json, string memory path) internal pure returns (string memory) {
+        return vm.parseJsonString(json, path);
+    }
+
+    function at(string memory list, uint256 i, string memory key) internal pure returns (string memory) {
+        return string.concat(".", list, "[", vm.toString(i), "].", key);
+    }
 
     /// Same derivation as server/src/personas.ts: last 20 bytes of keccak256("due-process:persona:<handle>").
     function persona(string memory handle) internal pure returns (address) {
@@ -62,9 +65,11 @@ contract Deploy is Script {
         address chief = vm.addr(chiefPk);
         address human = vm.addr(humanPk);
         address frogDeployer = vm.addr(frogPk);
-        address[5] memory traders;
-        for (uint256 i = 0; i < 5; i++) {
-            traders[i] = vm.addr(vm.envUint(string.concat(TRADER_KEYS[i], "_PRIVATE_KEY")));
+        string memory roster = dataFile("traders.json");
+        string memory personas = dataFile("personas.json");
+        address[N_TRADERS] memory traders;
+        for (uint256 i = 0; i < N_TRADERS; i++) {
+            traders[i] = vm.addr(vm.envUint(string.concat(field(roster, at("traders", i, "key")), "_PRIVATE_KEY")));
         }
 
         // ---- desk: engine, policies, ledger
@@ -93,13 +98,15 @@ contract Deploy is Script {
         amountParam[0] = extractor.PARAM_AMOUNT();
         engine.addPolicy(address(ledger), ledger.TRADE_POLICY_SELECTOR(), maxPolicy, amountParam);
 
-        for (uint256 i = 0; i < 5; i++) {
-            ledger.registerTrader(traders[i], TRADER_NAMES[i], keccak256(bytes(MANDATES[i])));
+        for (uint256 i = 0; i < N_TRADERS; i++) {
+            ledger.registerTrader(
+                traders[i], field(roster, at("traders", i, "name")), keccak256(bytes(field(roster, at("traders", i, "mandate"))))
+            );
         }
-        ledger.registerTrader(chief, "Desk Chief", keccak256("Supervise every trader; approve only trades that fit the desk."));
+        ledger.registerTrader(chief, field(roster, ".chief.name"), keccak256(bytes(field(roster, ".chief.mandate"))));
 
         IERC20(bondToken).approve(address(ledger), type(uint256).max);
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < N_TRADERS; i++) {
             ledger.postBond(traders[i], BOND);
         }
         ledger.postBond(chief, BOND);
@@ -117,7 +124,7 @@ contract Deploy is Script {
 
         // ---- chief: allocations and auto-approve limit
         vm.startBroadcast(chiefPk);
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < N_TRADERS; i++) {
             ledger.setAllocation(traders[i], ALLOCATION);
         }
         ledger.setAutoApproveLimit(AUTO_APPROVE);
@@ -127,7 +134,7 @@ contract Deploy is Script {
         vm.startBroadcast(frogPk);
         FrogToken frog = new FrogToken(1_000_000 ether);
         for (uint256 i = 0; i < 4; i++) {
-            frog.transfer(persona(KOLS[i]), 25_000 ether);
+            frog.transfer(persona(field(personas, at("kols", i, "handle"))), 25_000 ether);
         }
         vm.stopBroadcast();
 

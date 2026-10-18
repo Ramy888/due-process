@@ -19,7 +19,8 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
     enum Action {
         Clearance,
         Trade,
-        Judgment
+        Judgment,
+        Refusal
     }
 
     enum Verdict {
@@ -67,6 +68,14 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
         bytes32 trailHash;
     }
 
+    /// @notice The Chief's signed "no" to a cleared trade. It uses up the clearance, so it cannot be traded later.
+    struct Refusal {
+        bytes32 clearanceId;
+        address trader;
+        bytes32 reasonHash;
+        bytes32 trailHash;
+    }
+
     struct Judgment {
         bytes32 caseId;
         address defendant;
@@ -78,6 +87,8 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
     bytes32 public constant TRADE_TYPEHASH = keccak256(
         "Trade(bytes32 clearanceId,address trader,address token,uint8 side,uint256 notional,uint256 nonce,bytes32 trailHash)"
     );
+    bytes32 public constant REFUSAL_TYPEHASH =
+        keccak256("Refusal(bytes32 clearanceId,address trader,bytes32 reasonHash,bytes32 trailHash)");
     bytes32 public constant JUDGMENT_TYPEHASH =
         keccak256("Judgment(bytes32 caseId,address defendant,uint8 sanctions,uint256 slashAmount,bytes32 caseHash)");
     /// @notice ACE selector the trade policies are attached to; payload data is abi.encode(trader, token, notional).
@@ -133,6 +144,8 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
         bytes32 trailHash
     );
     event TradeRejected(bytes32 indexed tradeId, bytes32 indexed clearanceId, address indexed trader, string reason);
+    event TradeRefused(bytes32 indexed clearanceId, address indexed trader, string reason, bytes32 trailHash);
+    event RefusalRejected(bytes32 indexed clearanceId, address indexed trader, string reason);
     event JudgmentRecorded(
         bytes32 indexed caseId, address indexed defendant, uint8 sanctions, uint256 slashed, bytes32 caseHash
     );
@@ -256,6 +269,10 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
         );
     }
 
+    function refusalDigest(Refusal memory r) public view returns (bytes32) {
+        return _hashTypedDataV4(keccak256(abi.encode(REFUSAL_TYPEHASH, r.clearanceId, r.trader, r.reasonHash, r.trailHash)));
+    }
+
     function judgmentDigest(Judgment memory j) public view returns (bytes32) {
         return _hashTypedDataV4(
             keccak256(abi.encode(JUDGMENT_TYPEHASH, j.caseId, j.defendant, j.sanctions, j.slashAmount, j.caseHash))
@@ -272,6 +289,8 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
             _recordTrade(body);
         } else if (action == uint8(Action.Judgment)) {
             _recordJudgment(body);
+        } else if (action == uint8(Action.Refusal)) {
+            _recordRefusal(body);
         } else {
             revert UnknownAction(action);
         }
@@ -355,6 +374,23 @@ contract DeskLedger is ReceiverTemplate, PolicyProtectedBase, EIP712 {
         } catch (bytes memory err) {
             return string.concat("POLICY_REJECTED: ", _policyRejectReason(err));
         }
+    }
+
+    function _recordRefusal(bytes memory body) internal {
+        (Refusal memory r, string memory reason, bytes memory chiefSig) = abi.decode(body, (Refusal, string, bytes));
+        Clearance storage c = s_clearances[r.clearanceId];
+        string memory problem;
+        if (!c.exists) problem = "NO_CLEARANCE";
+        else if (c.trader != r.trader) problem = "CLEARANCE_MISMATCH";
+        else if (c.used) problem = "CLEARANCE_ALREADY_USED";
+        else if (keccak256(bytes(reason)) != r.reasonHash) problem = "REASON_MISMATCH";
+        else if (!_signedBy(refusalDigest(r), chiefSig, chief)) problem = "CHIEF_SIGNATURE_MISSING";
+        if (bytes(problem).length != 0) {
+            emit RefusalRejected(r.clearanceId, r.trader, problem);
+            return;
+        }
+        c.used = true;
+        emit TradeRefused(r.clearanceId, r.trader, reason, r.trailHash);
     }
 
     function _recordJudgment(bytes memory body) internal {

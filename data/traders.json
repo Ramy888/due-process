@@ -1,0 +1,40 @@
+{
+  "_note": "Single source for licences. contracts/script/Deploy.s.sol registers keccak256(mandate) on-chain; the server compiles the same text. SIMULATED trading agents, practice trades only.",
+  "traders": [
+    {
+      "key": "TRADER_KOL",
+      "name": "KOL Narrative",
+      "watches": "influencer posts: which coins several voices push at the same time",
+      "mandate": "Trade only narratives that at least 3 trusted voices share. Solana and Base Sepolia allowed. No single trade over $300 and never more than 10% of my allocation in one coin. Skip pools under $500k. At most 4 trades an hour."
+    },
+    {
+      "key": "TRADER_WHALE",
+      "name": "Whale Tracker",
+      "watches": "large wallets moving money into a coin",
+      "mandate": "Follow large wallet inflows only into tokens with over $1M of liquidity, on Solana only. No single trade over $500 and at most 15% of my allocation in one coin. At most 3 trades an hour."
+    },
+    {
+      "key": "TRADER_NEWS",
+      "name": "News Checker",
+      "watches": "news headlines, trading only when two independent sources agree",
+      "mandate": "Trade only on news confirmed by two independent sources, on Solana only. No single trade over $400 and at most 10% of my allocation in one coin. Skip anything with under $2M of liquidity. At most 2 trades an hour."
+    },
+    {
+      "key": "TRADER_MEME",
+      "name": "Meme Hunter",
+      "watches": "new meme coins gaining attention fast",
+      "mandate": "Meme coins on Solana only. Never more than 5% of my allocation in one coin and no single buy over $150. Skip anything with under $250k in its pool. At most 6 trades an hour. Never trade a coin within 30 minutes of selling a signal on it."
+    },
+    {
+      "key": "TRADER_DIP",
+      "name": "Dip Buyer",
+      "watches": "coins whose price just fell sharply",
+      "mandate": "Buy dips of more than 15% on Solana tokens with over $1M of liquidity, and exit at +10% or -7%. No single trade over $250 and at most 10% of my allocation in one coin. At most 4 trades an hour."
+    }
+  ],
+  "chief": {
+    "key": "CHIEF",
+    "name": "Desk Chief",
+    "mandate": "Supervise every trader; approve only trades that fit the desk."
+  }
+}

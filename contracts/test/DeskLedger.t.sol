@@ -342,6 +342,70 @@ contract DeskLedgerTest is Test {
 
     // ------------------------------------------------------------------ judgments
 
+    // ------------------------------------------------------------------ chief refusals
+
+    function _refusal(bytes32 clearanceId, address who, string memory reason) internal pure returns (DeskLedger.Refusal memory) {
+        return DeskLedger.Refusal({
+            clearanceId: clearanceId, trader: who, reasonHash: keccak256(bytes(reason)), trailHash: keccak256("trail")
+        });
+    }
+
+    /// Submits a refusal and returns (refused, problem) from TradeRefused / RefusalRejected.
+    function _refuse(DeskLedger.Refusal memory r, string memory reason, bytes memory sig)
+        internal
+        returns (bool refused, string memory problem)
+    {
+        vm.recordLogs();
+        _report(DeskLedger.Action.Refusal, abi.encode(r, reason, sig));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter != address(desk)) continue;
+            if (logs[i].topics[0] == DeskLedger.TradeRefused.selector) return (true, "");
+            if (logs[i].topics[0] == DeskLedger.RefusalRejected.selector) return (false, abi.decode(logs[i].data, (string)));
+        }
+        revert("no refusal outcome event");
+    }
+
+    function test_chiefRefusalIsRecordedAndUsesUpTheClearance() public {
+        string memory why = "Two other traders already hold this token; the desk would be too concentrated.";
+        _clear("c1", trader, token, 500e6, DeskLedger.Verdict.Cleared);
+        DeskLedger.Refusal memory r = _refusal("c1", trader, why);
+        (bool refused,) = _refuse(r, why, _sign(CHIEF_PK, desk.refusalDigest(r)));
+        assertTrue(refused);
+        assertTrue(desk.clearanceOf("c1").used);
+
+        DeskLedger.Trade memory t = _trade("c1", trader, token, 500e6);
+        _expectRejected(t, _chiefSigned(t), "", "CLEARANCE_ALREADY_USED");
+    }
+
+    function test_refusalNeedsTheChiefsSignature() public {
+        _clear("c1", trader, token, 500e6, DeskLedger.Verdict.Cleared);
+        DeskLedger.Refusal memory r = _refusal("c1", trader, "no");
+        (bool refused, string memory problem) = _refuse(r, "no", _sign(ROGUE_PK, desk.refusalDigest(r)));
+        assertFalse(refused);
+        assertEq(problem, "CHIEF_SIGNATURE_MISSING");
+        assertFalse(desk.clearanceOf("c1").used);
+    }
+
+    function test_refusalReasonMustMatchWhatTheChiefSigned() public {
+        _clear("c1", trader, token, 500e6, DeskLedger.Verdict.Cleared);
+        DeskLedger.Refusal memory r = _refusal("c1", trader, "too concentrated");
+        (bool refused, string memory problem) = _refuse(r, "trader is a fraud", _sign(CHIEF_PK, desk.refusalDigest(r)));
+        assertFalse(refused);
+        assertEq(problem, "REASON_MISMATCH");
+    }
+
+    function test_refusalNeedsAMatchingUnusedClearance() public {
+        DeskLedger.Refusal memory r = _refusal("missing", trader, "no");
+        (, string memory problem) = _refuse(r, "no", _sign(CHIEF_PK, desk.refusalDigest(r)));
+        assertEq(problem, "NO_CLEARANCE");
+
+        _clear("c1", meme, token, 500e6, DeskLedger.Verdict.Cleared);
+        r = _refusal("c1", trader, "no");
+        (, problem) = _refuse(r, "no", _sign(CHIEF_PK, desk.refusalDigest(r)));
+        assertEq(problem, "CLEARANCE_MISMATCH");
+    }
+
     function _judgment(bytes32 caseId, address defendant, uint8 sanctions, uint256 slash)
         internal
         pure
