@@ -6,7 +6,7 @@ import type { LocalAccount } from "viem/accounts";
 import type { ApprovalQueue } from "../approvals.js";
 import type { Trail } from "../agents/trail.js";
 import { emit } from "../bus.js";
-import type { WriteDesk } from "../ledger/desk-writer.js";
+import { ledgerVerdict, type WriteDesk } from "../ledger/desk-writer.js";
 import { deskDomain, signJudgment, type JudgmentMessage } from "../ledger/eip712.js";
 import { CHIEF } from "./exhibits.js";
 import type { CaseFile, JudgeAnswer } from "./court.js";
@@ -29,7 +29,7 @@ export type SanctionDeps = {
 export type Enforcement = {
   approved: boolean;
   caseHash: Hex;
-  judgments: { defendant: string; caseId: Hex; sanctions: number; slashUsd: number; txHash: Hex | null }[];
+  judgments: { defendant: string; caseId: Hex; sanctions: number; slashUsd: number; txHash: Hex | null; recorded: boolean; reason: string | null }[];
   revokedAutoApprove: boolean;
 };
 
@@ -68,9 +68,12 @@ export async function enforceSanctions(deps: SanctionDeps, file: CaseFile, trail
       },
       humanSig,
     });
-    trail.append("desk-writer", "ledger.judgment", { defendant: s.defendant, caseId: message.caseId, sanctions: message.sanctions, txHash: written.txHash, mode: written.mode, log: written.log });
-    emit({ type: "ledger.write", beatId: "court", ...written });
-    judgments.push({ defendant: s.defendant, caseId: message.caseId, sanctions: message.sanctions, slashUsd: s.slashUsd, txHash: written.txHash });
+    const verdict = ledgerVerdict(written, "JudgmentRecorded");
+    const reason = verdict.ok ? null : verdict.reason;
+    trail.append("desk-writer", verdict.ok ? "ledger.judgment" : "ledger.rejected", { defendant: s.defendant, caseId: message.caseId, sanctions: message.sanctions, txHash: written.txHash, mode: written.mode, log: written.log, reason });
+    emit({ type: "ledger.write", beatId: "court", ...written, recorded: verdict.ok, reason });
+    judgments.push({ defendant: s.defendant, caseId: message.caseId, sanctions: message.sanctions, slashUsd: s.slashUsd, txHash: written.txHash, recorded: verdict.ok, reason });
   }
-  return { approved, caseHash, judgments, revokedAutoApprove: sanctions.some((s) => s.revokeAutoApprove && s.defendant === CHIEF) };
+  const revokedAutoApprove = sanctions.some((s, i) => s.revokeAutoApprove && s.defendant === CHIEF && judgments[i].recorded);
+  return { approved, caseHash, judgments, revokedAutoApprove };
 }

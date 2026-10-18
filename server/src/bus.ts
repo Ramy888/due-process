@@ -23,7 +23,7 @@ export type DeskEvent =
   | { type: "scenario.finished"; runId: string; error?: string }
   | { type: "surveillance.alerts"; runId: string; alerts: { code: string; trader: TraderKey; symbol: string; detail: string; unreviewed: boolean }[] }
   | { type: "case.decided"; runId: string; summary: string; approved: boolean; caseHash: Hex }
-  | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string }
+  | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string; recorded: boolean; reason: string | null }
   | { type: "signal.sold"; signalId: string; symbol: string; seller: string; buyer: Address };
 
 const bus = new EventEmitter();

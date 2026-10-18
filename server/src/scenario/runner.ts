@@ -8,7 +8,8 @@ import { emit } from "../bus.js";
 import { DESK, DeskBook } from "../desk.js";
 import { ROOT, required } from "../env.js";
 import { deskDomain } from "../ledger/eip712.js";
-import { writeDeskWithCre, type WriteDesk } from "../ledger/desk-writer.js";
+import { deskWriter, type WriteDesk } from "../ledger/desk-writer.js";
+import { readerFor } from "../ledger/chain.js";
 import type { DeskStore } from "../store.js";
 import type { TraderKey } from "../traders.js";
 import { chiefStage } from "./chief-stage.js";
@@ -54,9 +55,14 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
     const chief = privateKeyToAccount(keyOf("CHIEF"));
     const human = privateKeyToAccount(keyOf("HUMAN_APPROVER"));
     const domain = deskDomain(dep.chainId, dep.deskLedger);
-    const writeDesk = deps.writeDesk ?? writeDeskWithCre;
-    // A judgment against the Chief revokes its auto-approve rule for the rest of the run (24 h on-chain).
+    // In ledger mode the contract is the source of truth: what each write did, the Chief's auto-approve rule (a
+    // judgment revokes it for 24 h, across runs) and each licence's status. Locally the run keeps that in memory.
+    const ledgerMode = (process.env.CRE_DESK_TARGET ?? "local-simulation") !== "local-simulation";
+    const reader = ledgerMode ? readerFor(dep) : undefined;
+    const writeDesk = deps.writeDesk ?? deskWriter(reader);
     let autoApproveRevoked = false;
+    const autoApproveActive = async () => (reader ? reader.autoApproveActive() : !autoApproveRevoked);
+    const licenceActive = reader ? (k: TraderKey) => reader.licenceActive(traderAddress(k)) : undefined;
     const { policies } = await licenceDesk(runtime, deps.store, runId);
     const afterClearance = chiefStage({
       runtime,
@@ -68,7 +74,7 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
       domain,
       addressOf: traderAddress,
       requestCoSign: deps.coSign.request,
-      autoApproveActive: () => !autoApproveRevoked,
+      autoApproveActive,
       onRecorded: (t) => deps.store.recordTrade(t),
     });
     const outcomes: BeatOutcome[] = [];
@@ -82,6 +88,7 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
             policies,
             runId,
             addressOf: traderAddress,
+            licenceActive,
             requestClearance: deps.requestClearance ?? paidClearance(deps.deskUrl),
             buySignal: deps.buySignal ?? paidSignal(deps.deskUrl),
             resolveDeployment: (key) => {

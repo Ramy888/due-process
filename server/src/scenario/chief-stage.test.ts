@@ -155,6 +155,16 @@ describe("Desk Chief stage", () => {
     expect(s.writes).toEqual([]);
   });
 
+  it("reports what the ledger decided: a signed trade the contract rejected is not booked", async () => {
+    const s = setup(approve, {
+      writeDesk: async (req) => ({ kind: req.kind, mode: "ledger", txHash: `0x${"1".repeat(64)}`, log: "w.log", events: [{ event: "TradeRejected", args: { reason: "OVER_ALLOCATION" } }] }),
+    });
+    const c = s.ctx(90);
+    expect(await s.run(c)).toMatchObject({ outcome: "rejected-by-ledger", reason: "OVER_ALLOCATION" });
+    expect(s.deps.book.holdingsUsd("TRADER_NEWS")).toEqual({});
+    expect(c.trail.entries().at(-1)).toMatchObject({ kind: "ledger.rejected", data: { reason: "OVER_ALLOCATION" } });
+  });
+
   it("holds a large trade for the human, and writes it only with the human's co-signature", async () => {
     const declined = setup(approve);
     expect(await declined.run(declined.ctx(OVER_COSIGN))).toMatchObject({ outcome: "cosign-declined" });

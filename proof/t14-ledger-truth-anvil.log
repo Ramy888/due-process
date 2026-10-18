@@ -1,0 +1,15 @@
+auto-approve active on-chain: true
+  judgment revoke-auto-approve: JudgmentRecorded { ok: true }
+auto-approve active on-chain: false
+1. $90 with a STALE in-memory 'auto-approve is on':
+   -> {
+  outcome: 'rejected-by-ledger',
+  reason: 'CHIEF_APPROVAL_MISSING',
+  txHash: '0xd90fea24bc24db96aadf93cae83858369ddeae98f44b6210f3ea946479e2d505'
+}
+2. $90 reading auto-approve from the chain:
+   -> approved
+3. licence status from the chain before/after a suspension:
+   meme active: true
+  judgment suspend-meme: JudgmentRecorded { ok: true }
+   meme active: false

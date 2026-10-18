@@ -45,6 +45,8 @@ export type EngineDeps = {
   /** Distinguishes runs of the same scenario; part of every trail id. */
   runId: string;
   addressOf: (trader: TraderKey) => Address;
+  /** In ledger mode, whether DeskLedger still holds the trader's licence active; a suspended trader cannot trade. */
+  licenceActive?: (trader: TraderKey) => Promise<boolean>;
   buySignal?: BuySignal;
   resolveDeployment?: (key: string) => string;
   afterClearance?: AfterClearance;
@@ -89,6 +91,11 @@ export async function runBeat(deps: EngineDeps, scenario: Scenario, beatId: stri
   const trail = deps.store.openTrail(trailId);
   emit({ type: "beat.started", beatId: beat.id, title: beat.title, trader: trader.key });
   trail.append("desk", "beat.started", { beat: beat.id, title: beat.title, trader: trader.name, feed: beat.feed });
+  if (deps.licenceActive && !(await deps.licenceActive(trader.key))) {
+    trail.append("desk", "beat.skipped", { why: `${trader.name}'s licence is suspended on DeskLedger` });
+    emit({ type: "beat.finished", beatId: beat.id, verdict: null, trailId, trailHead: trail.head() });
+    return { beatId: beat.id, trader: trader.key, steps: [], trailId, trailHead: trail.head() };
+  }
 
   let signalId: string | undefined;
   if (beat.signalSale) signalId = await sellSignal(deps, beat, trader, trail);

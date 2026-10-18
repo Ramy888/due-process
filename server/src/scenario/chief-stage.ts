@@ -11,7 +11,7 @@ import { emit } from "../bus.js";
 import { ledgerTokenFor } from "../clearance.js";
 import { DESK, type DeskBook } from "../desk.js";
 import { deskDomain, reasonHash, signRefusal, signTrade, tradeDigest, type TradeMessage } from "../ledger/eip712.js";
-import type { WriteDesk } from "../ledger/desk-writer.js";
+import { ledgerVerdict, type WriteDesk } from "../ledger/desk-writer.js";
 import { traders, type TraderKey } from "../traders.js";
 import type { RecordedTrade } from "../store.js";
 import type { AfterClearance, BeatContext } from "./engine.js";
@@ -20,7 +20,9 @@ export type ChiefOutcome =
   | { outcome: "blocked" }
   | { outcome: "refused"; reason: string; txHash: Hex | null }
   | { outcome: "cosign-declined"; reason: string }
-  | { outcome: "approved" | "auto-approved"; tradeId: Hex; txHash: Hex | null };
+  | { outcome: "approved" | "auto-approved"; tradeId: Hex; txHash: Hex | null }
+  /** The desk signed it, but DeskLedger did not record it (its reason is the contract's). */
+  | { outcome: "rejected-by-ledger"; reason: string; txHash: Hex | null };
 
 export type CoSignRequest = { beatId: string; trader: TraderKey; symbol: string; notionalUsd: number; reason: string };
 
@@ -36,8 +38,8 @@ export type ChiefStageDeps = {
   addressOf: (trader: TraderKey) => Address;
   /** Resolves when the human decides; the desk never co-signs on its own. */
   requestCoSign: (req: CoSignRequest) => Promise<boolean>;
-  /** False while a judgment has revoked the Chief's auto-approve rule. */
-  autoApproveActive: () => boolean;
+  /** False while a judgment has revoked the Chief's auto-approve rule (read from the ledger in ledger mode). */
+  autoApproveActive: () => boolean | Promise<boolean>;
   /** Called once a trade is written, so surveillance can review it later. */
   onRecorded?: (trade: RecordedTrade) => void;
   nonce?: () => bigint;
@@ -70,7 +72,7 @@ export const chiefStage =
       trailHash: "0x" as Hex, // set below, once the review is on the trail
     };
 
-    const auto = clearance.verdict === "CLEARED" && decision.notionalUsd <= DESK.autoApproveUsd && deps.autoApproveActive();
+    const auto = clearance.verdict === "CLEARED" && decision.notionalUsd <= DESK.autoApproveUsd && (await deps.autoApproveActive());
     let reason = `Auto-approved: cleared and at most $${DESK.autoApproveUsd}, under the Chief's standing rule.`;
     let concerns: string[] = [];
     if (auto) {
@@ -105,8 +107,10 @@ export const chiefStage =
         const refusal = { clearanceId: clearance.clearanceId, trader: trade.trader, trailHash: trail.head() };
         const chiefSig = await signRefusal(deps.chief, deps.domain, { ...refusal, reasonHash: reasonHash(reason) });
         const written = await deps.writeDesk({ kind: "refusal", refusal, reason, chiefSig });
-        trail.append("desk-writer", "ledger.refusal", { txHash: written.txHash, mode: written.mode, log: written.log });
-        emit({ type: "ledger.write", beatId: beat.id, ...written });
+        const verdict = ledgerVerdict(written, "TradeRefused");
+        trail.append("desk-writer", verdict.ok ? "ledger.refusal" : "ledger.rejected", { txHash: written.txHash, mode: written.mode, log: written.log, ...(verdict.ok ? {} : { reason: verdict.reason }) });
+        emit({ type: "ledger.write", beatId: beat.id, ...written, recorded: verdict.ok, reason: verdict.ok ? null : verdict.reason });
+        if (!verdict.ok) return done({ outcome: "rejected-by-ledger", reason: verdict.reason, txHash: written.txHash }, verdict.reason, concerns);
         return done({ outcome: "refused", reason, txHash: written.txHash }, reason, concerns);
       }
     }
@@ -135,8 +139,14 @@ export const chiefStage =
       chiefSig,
       humanSig,
     });
-    deps.book.record(trader.key, token.symbol, decision.side, decision.notionalUsd);
     const tradeId = tradeDigest(deps.domain, trade);
+    const verdict = ledgerVerdict(written, "TradeRecorded");
+    if (!verdict.ok) {
+      trail.append("desk-writer", "ledger.rejected", { tradeId, reason: verdict.reason, txHash: written.txHash, mode: written.mode, log: written.log });
+      emit({ type: "ledger.write", beatId: beat.id, ...written, recorded: false, reason: verdict.reason });
+      return done({ outcome: "rejected-by-ledger", reason: verdict.reason, txHash: written.txHash }, verdict.reason, concerns);
+    }
+    deps.book.record(trader.key, token.symbol, decision.side, decision.notionalUsd);
     trail.append("desk-writer", "ledger.trade", { tradeId, autoApproved: auto, txHash: written.txHash, mode: written.mode, log: written.log });
     deps.onRecorded?.({
       tradeId,
@@ -152,6 +162,6 @@ export const chiefStage =
       txHash: written.txHash,
       at: new Date().toISOString(),
     });
-    emit({ type: "ledger.write", beatId: beat.id, ...written });
+    emit({ type: "ledger.write", beatId: beat.id, ...written, recorded: true, reason: null });
     return done({ outcome: auto ? "auto-approved" : "approved", tradeId, txHash: written.txHash }, reason, concerns);
   };
