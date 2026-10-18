@@ -51,6 +51,13 @@ export function parseSimulationResult(log: string): unknown {
   return typeof outer === "string" ? JSON.parse(outer) : outer;
 }
 
+/** The CLI reads its own secrets from workflows/.env; the desk's wallet keys in this process stay out of the child. */
+export function creEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { PATH: `${homedir()}/.local/bin:${process.env.PATH ?? ""}` };
+  for (const name of ["HOME", "TMPDIR", "USER", "LANG", "TERM"]) if (process.env[name]) env[name] = process.env[name];
+  return env;
+}
+
 let queue: Promise<unknown> = Promise.resolve();
 const oneAtATime = <T>(task: () => Promise<T>): Promise<T> => {
   const run = queue.then(task, task);
@@ -79,7 +86,7 @@ async function runOnce(opts: CreRunOptions, config: CreRunnerConfig): Promise<Cr
     const exitCode = await new Promise<number | null>((resolve, reject) => {
       const child = spawn(config.bin, args, {
         cwd: config.workflowsDir,
-        env: { ...process.env, PATH: `${homedir()}/.local/bin:${process.env.PATH ?? ""}` },
+        env: creEnv(),
         timeout: config.timeoutMs,
       });
       let pending = "";

@@ -7,12 +7,14 @@ import { personas } from "./personas.js";
 import { createApp } from "./app.js";
 import { runClearanceWithCre } from "./clearance.js";
 import { facilitatorFromEnv } from "./x402.js";
+import { DeskStore } from "./store.js";
 
 const app = createApp({
   deskToken: required("DESK_API_TOKEN"),
   payTo: privateKeyToAccount(required("DESK_PRIVATE_KEY") as Hex).address,
   facilitator: facilitatorFromEnv(),
   runClearance: runClearanceWithCre,
+  store: new DeskStore(),
 });
 
 // Dev seed so the workflow can be simulated before the scenario engine exists.

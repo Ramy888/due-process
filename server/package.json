@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@hono/node-server": "^1.19.17",
     "@x402/core": "^2.28.0",
     "@x402/evm": "^2.28.0",

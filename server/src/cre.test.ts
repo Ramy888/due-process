@@ -70,6 +70,16 @@ describe("runCre", () => {
     expect(readdirSync(join(config.workflowsDir, "payloads/runtime"))).toEqual([]);
   });
 
+  it("keeps the desk's wallet keys and the Anthropic key out of the simulator's environment", async () => {
+    process.env.ANTHROPIC_API_KEY ??= "sk-test-not-real";
+    expect(process.env.DESK_PRIVATE_KEY).toBeTruthy(); // loaded from the root .env, as in the server
+    const config = fakeCre(`env > "${"$"}(dirname "$0")/env-seen"; cat "${BONK_LOG}"`);
+    await runCre(opts, config);
+    const seen = readFileSync(join(dirOf(config), "env-seen"), "utf8");
+    expect(seen).toMatch(/^PATH=/m);
+    expect(seen).not.toMatch(/PRIVATE_KEY|ANTHROPIC|DESK_API_TOKEN/);
+  });
+
   it("never runs two simulations at once", async () => {
     const config = fakeCre(`E="${"$"}(dirname "$0")/events"; echo start >> "$E"; sleep 0.2; echo end >> "$E"; cat "${BONK_LOG}"`);
     await Promise.all([runCre(opts, config), runCre(opts, config), runCre(opts, config)]);

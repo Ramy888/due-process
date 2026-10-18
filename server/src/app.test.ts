@@ -8,6 +8,7 @@ import { getEvidence } from "./evidence.js";
 import { ROOT } from "./env.js";
 import { localFacilitator } from "./testing/local-facilitator.js";
 import { payingFetch } from "./x402.js";
+import { DeskStore } from "./store.js";
 
 const DESK: Address = "0x4fAa2A586949D88C7d857a737Ace2C929dEb4f11";
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -22,7 +23,8 @@ function desk(cre: (p: Payload, onLine: (l: string) => void) => unknown = (p) =>
     calls.push(payload);
     return { runId: "r1", result: await cre(payload, onLine), logPath: `${ROOT}proof/runs/fake.log` };
   };
-  const app = createApp({ deskToken: "t0ken", payTo: DESK, facilitator, runClearance });
+  const store = new DeskStore(":memory:");
+  const app = createApp({ deskToken: "t0ken", payTo: DESK, facilitator, runClearance, store });
   const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit) =>
     app.request(input instanceof Request ? input : String(input), init)) as typeof fetch;
   const trader = generatePrivateKey();
@@ -32,7 +34,7 @@ function desk(cre: (p: Payload, onLine: (l: string) => void) => unknown = (p) =>
       body: JSON.stringify(body),
       headers: { "content-type": "application/json" },
     });
-  return { app, facilitator, calls, pay, traderAddress: privateKeyToAccount(trader).address };
+  return { app, store, facilitator, calls, pay, traderAddress: privateKeyToAccount(trader).address };
 }
 
 const cleared = (p: Payload) => ({
@@ -100,6 +102,27 @@ describe("POST /clearance", () => {
     const res = await d.pay({ chain: "solana", token: BONK, notionalE6: "1" });
     expect(res.status).toBe(502);
     expect(d.facilitator.settled).toEqual([]);
+  });
+
+  it("streams recent desk events to a UI that connects late", async () => {
+    const d = desk();
+    await d.pay({ chain: "solana", token: BONK, notionalE6: "1" });
+    const res = await d.app.request("/events");
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+    const reader = res.body!.getReader();
+    let text = "";
+    while (!text.includes("event: clearance.result")) text += new TextDecoder().decode((await reader.read()).value);
+    await reader.cancel();
+    expect(text).toContain("event: clearance.started");
+  });
+
+  it("serves a trail with its verification, and 404 for an unknown one", async () => {
+    const d = desk();
+    const trail = d.store.openTrail("case-1");
+    trail.append("judge", "ruling", { guilty: true });
+    const body = await (await d.app.request("/trails/case-1")).json();
+    expect(body.verification).toEqual({ ok: true, head: trail.head() });
+    expect((await d.app.request("/trails/nope")).status).toBe(404);
   });
 
   it("keeps the evidence endpoint behind the desk token", async () => {

@@ -1,0 +1,14 @@
+source=model 39.6s mandateHash=0x6967e070da765c748d60358c94ea49fabdd8ffafae17baaacf1a57c529dce131
+policy {"maxTradeUsd":150,"maxPositionPctOfAllocation":5,"minLiquidityUsd":250000,"allowedChains":["solana"],"deniedTokens":["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB","So11111111111111111111111111111111111111112"],"maxTradesPerHour":6,"signalEmbargoMinutes":30}
+plain: Meme Hunter may trade only on Solana, with no single trade over $150, no more than $100 (5% of $2,000) in any one coin, and only in coins whose pool holds at least $250,000. They can make at most 6 trades an hour and must wait 30 minutes after selling a signal on a coin before trading it. Your mandate did not name any banned coins, so we read 'meme coins only' as blocking the main non-meme Solana tokens (USDC, USDT and wrapped SOL).
+ CAUGHT CHAIN_NOT_ALLOWED  -> CHAIN_NOT_ALLOWED | Small buy of a token on Base Sepolia, which is not Solana.
+ CAUGHT TOKEN_DENIED       -> TOKEN_DENIED | Small buy of USDC on Solana, a stablecoin rather than a meme coin.
+ CAUGHT TRADE_TOO_LARGE    -> TRADE_TOO_LARGE | Selling $155 of BONK after it grew, leaving $80; the single trade is just over $150.
+ CAUGHT TRADE_TOO_LARGE    -> TRADE_TOO_LARGE | Selling $151 of WIF to trim a grown position down to $60; the trade is $1 over the limit.
+ CAUGHT POSITION_TOO_LARGE -> POSITION_TOO_LARGE | Buying $60 of POPCAT brings the holding to $105, just over the $100 cap.
+ CAUGHT POSITION_TOO_LARGE -> POSITION_TOO_LARGE | Topping up BONK with $30 takes the holding to $102, just past $100.
+ CAUGHT LIQUIDITY_TOO_LOW  -> LIQUIDITY_TOO_LOW | Buying $50 of a new meme coin whose pool holds $245,000, just under $250,000.
+ CAUGHT LIQUIDITY_TOO_LOW  -> LIQUIDITY_TOO_LOW | Buying $70 of a meme coin whose pool holds $249,500.
+ CAUGHT TOO_MANY_TRADES    -> TOO_MANY_TRADES | A seventh trade within the hour: a $40 WIF buy after 6 trades already.
+ CAUGHT SIGNAL_EMBARGO     -> SIGNAL_EMBARGO | Buying $50 of POPCAT only 25 minutes after selling a signal on it.
+defects: 0 trail head: 0x52e7fbe7ed880617a7c75f81dbf3d22047d213a73ca852dcf1691d0240f55368

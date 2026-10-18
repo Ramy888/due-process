@@ -2,18 +2,31 @@
 import { EventEmitter } from "node:events";
 import type { Address, Hex } from "viem";
 import type { ClearanceResult } from "./clearance.js";
+import type { TrailEntry } from "./agents/trail.js";
 
 export type DeskEvent =
   | { type: "clearance.started"; clearanceId: Hex; trader: Address; chain: string; token: string; notionalE6: string }
   | { type: "cre.line"; clearanceId: Hex; line: string }
   | { type: "clearance.result"; result: ClearanceResult; log: string }
-  | { type: "clearance.failed"; clearanceId: Hex; error: string };
+  | { type: "clearance.failed"; clearanceId: Hex; error: string }
+  | { type: "trail.entry"; entry: TrailEntry };
 
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 
-export const emit = (e: DeskEvent) => void bus.emit("event", e);
+// The last events, so a UI that connects mid-scenario sees what already happened.
+const RECENT_LIMIT = 500;
+const recentEvents: DeskEvent[] = [];
+
+export function emit(e: DeskEvent): void {
+  recentEvents.push(e);
+  if (recentEvents.length > RECENT_LIMIT) recentEvents.shift();
+  bus.emit("event", e);
+}
+
 export function subscribe(fn: (e: DeskEvent) => void): () => void {
   bus.on("event", fn);
   return () => void bus.off("event", fn);
 }
+
+export const recent = (): readonly DeskEvent[] => recentEvents;

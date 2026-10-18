@@ -1,5 +1,6 @@
 // Loads the root .env and, for the Anthropic key only, the file named by ANTHROPIC_ENV_FILE (never copied here).
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -13,14 +14,15 @@ export function required(name: string): string {
   return v;
 }
 
-/** Reads ANTHROPIC_API_KEY from ANTHROPIC_ENV_FILE at call time; the key never enters this repo's files. */
+/** Reads only ANTHROPIC_API_KEY from ANTHROPIC_ENV_FILE. It is returned, never put in process.env, so child
+ *  processes (the CRE CLI) and this repo's files never see it or anything else in that file. */
 export function anthropicKey(): string {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    const file = required("ANTHROPIC_ENV_FILE");
-    if (!existsSync(file)) throw new Error(`ANTHROPIC_ENV_FILE does not exist: ${file}`);
-    process.loadEnvFile(file);
-  }
-  return required("ANTHROPIC_API_KEY");
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  const file = required("ANTHROPIC_ENV_FILE");
+  if (!existsSync(file)) throw new Error(`ANTHROPIC_ENV_FILE does not exist: ${file}`);
+  const key = parseEnv(readFileSync(file, "utf8")).ANTHROPIC_API_KEY;
+  if (!key) throw new Error("ANTHROPIC_API_KEY is not set in ANTHROPIC_ENV_FILE");
+  return key;
 }
 
 export const PORT = Number(process.env.PORT ?? 8787);

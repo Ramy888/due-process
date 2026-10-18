@@ -1,5 +1,6 @@
 // HTTP surface of the desk server. Built from injected dependencies so tests can swap the facilitator and CRE.
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { timingSafeEqual } from "node:crypto";
 import { relative } from "node:path";
 import type { Address } from "viem";
@@ -8,9 +9,17 @@ import { ROOT } from "./env.js";
 import { getEvidence } from "./evidence.js";
 import { clearanceBody, clearancePayload, type ClearanceResult, type RunClearance } from "./clearance.js";
 import { clearancePaywall, paymentOf } from "./x402.js";
-import { emit } from "./bus.js";
+import { emit, recent, subscribe, type DeskEvent } from "./bus.js";
+import { verifyTrail } from "./agents/trail.js";
+import type { DeskStore } from "./store.js";
 
-export type AppDeps = { deskToken: string; payTo: Address; facilitator: FacilitatorClient; runClearance: RunClearance };
+export type AppDeps = {
+  deskToken: string;
+  payTo: Address;
+  facilitator: FacilitatorClient;
+  runClearance: RunClearance;
+  store: DeskStore;
+};
 
 const VERDICTS = new Set(["CLEARED", "FLAGGED", "BLOCKED"]);
 
@@ -29,6 +38,25 @@ export function createApp(deps: AppDeps): Hono {
     if (!authorized(c.req.header("authorization"))) return c.json({ error: "unauthorized" }, 401);
     const e = getEvidence(c.req.param("id"));
     return e ? c.json(e) : c.json({ error: "not found" }, 404);
+  });
+
+  // Live feed for the UI: recent history first, then every new event.
+  app.get("/events", (c) =>
+    streamSSE(c, async (stream) => {
+      const send = (e: DeskEvent) => stream.writeSSE({ event: e.type, data: JSON.stringify(e) });
+      for (const e of recent()) await send(e);
+      const unsubscribe = subscribe((e) => void send(e));
+      stream.onAbort(unsubscribe);
+      while (!stream.aborted) await stream.sleep(15_000).then(() => stream.writeSSE({ event: "ping", data: "{}" }));
+      unsubscribe();
+    }),
+  );
+
+  // A trail and whether its hash chain still holds; the head is the value committed on-chain.
+  app.get("/trails/:id", (c) => {
+    const entries = deps.store.trailEntries(c.req.param("id"));
+    if (entries.length === 0) return c.json({ error: "not found" }, 404);
+    return c.json({ entries, verification: verifyTrail(entries) });
   });
 
   // Paid per call. Any non-2xx answer below means the facilitator never settles, so the trader is not charged.
