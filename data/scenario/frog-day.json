@@ -1,5 +1,5 @@
 {
-  "_note": "SIMULATED. Posts come from synthetic personas (not real people), headlines from made-up outlets, and market numbers are a frozen snapshot used for paper trades only. Not financial or legal advice.",
+  "_note": "SIMULATED. Posts come from synthetic personas (not real people), headlines from made-up outlets, and market numbers are a frozen snapshot (priceUsd when the desk trades, closePriceUsd at the end of the session) used for paper trades only. Not financial or legal advice.",
   "id": "frog-day",
   "title": "Frog Day: a desk of AI traders under supervision",
   "snapshotLabel": "Frozen market snapshot (paper trading)",
@@ -10,28 +10,32 @@
       "priceUsd": 0.0042,
       "liquidityUsd": 820000,
       "change24hPct": 64,
-      "staged": true
+      "staged": true,
+      "closePriceUsd": 0.0011
     },
     "WIF": {
       "chain": "solana",
       "address": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
       "priceUsd": 1.84,
       "liquidityUsd": 5800000,
-      "change24hPct": -18
+      "change24hPct": -18,
+      "closePriceUsd": 1.93
     },
     "POPCAT": {
       "chain": "solana",
       "address": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
       "priceUsd": 0.41,
       "liquidityUsd": 4050000,
-      "change24hPct": 6
+      "change24hPct": 6,
+      "closePriceUsd": 0.47
     },
     "JUP": {
       "chain": "solana",
       "address": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
       "priceUsd": 0.52,
       "liquidityUsd": 3820000,
-      "change24hPct": 1
+      "change24hPct": 1,
+      "closePriceUsd": 0.52
     }
   },
   "beats": [

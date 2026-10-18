@@ -44,3 +44,11 @@ export class DeskBook {
     return Object.fromEntries([...this.holdings].map(([k, v]) => [k, { ...v }]));
   }
 }
+
+/** Paper profit or loss: every position filled at the session price and is marked at the closing price. */
+export function paperPnlUsd(holdingsUsd: Record<string, number>, tokens: Record<string, { priceUsd: number; closePriceUsd: number }>): number {
+  return Object.entries(holdingsUsd).reduce((sum, [symbol, usd]) => {
+    const t = tokens[symbol];
+    return t ? sum + usd * (t.closePriceUsd / t.priceUsd - 1) : sum;
+  }, 0);
+}

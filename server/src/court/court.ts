@@ -8,7 +8,7 @@ import type { Trail } from "../agents/trail.js";
 import { DESK } from "../desk.js";
 import type { DeskStore } from "../store.js";
 import type { TraderKey } from "../traders.js";
-import { buildExhibits, CHIEF, forCourt, lawLibrary, type Exhibit } from "./exhibits.js";
+import { buildExhibits, CHIEF, forCourt, lawLibrary, type Exhibit, type MarketPrices } from "./exhibits.js";
 import type { Alert } from "./surveillance.js";
 
 const PREAMBLE = `This is a simulated proceeding on the Due Process desk, where AI trading agents make practice trades with
@@ -52,6 +52,7 @@ export type CourtDeps = {
   policies: ReadonlyMap<TraderKey, MandatePolicy>;
   names: Readonly<Record<string, string>>;
   buyerName: (address: string) => string;
+  market: MarketPrices;
 };
 
 const LAW_IDS = new Set(lawLibrary.map((l) => l.id));
@@ -84,7 +85,7 @@ export async function tryCase(deps: CourtDeps, runId: string, alerts: Alert[]): 
   if (alerts.some((a) => a.unreviewed)) defendants.push(CHIEF);
   const trailId = `${runId}:case`;
   const trail = deps.store.openTrail(trailId);
-  const exhibits = buildExhibits(alerts, deps.policies, deps.buyerName);
+  const exhibits = buildExhibits(alerts, deps.policies, deps.buyerName, deps.market);
   const exhibitIds = new Set(exhibits.map((e) => e.id));
   const evidence = forCourt(exhibits);
   trail.append("surveillance", "case.opened", { defendants, alerts: alerts.map((a) => ({ code: a.code, detail: a.detail })), exhibits });

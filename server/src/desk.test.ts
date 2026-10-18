@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { ROOT } from "./env.js";
-import { DESK, DeskBook } from "./desk.js";
+import { DESK, DeskBook, paperPnlUsd } from "./desk.js";
 
 describe("desk parameters", () => {
   it("match the constants the deploy script puts on-chain", () => {
@@ -33,5 +33,13 @@ describe("desk book", () => {
     expect(book.holdingsUsd("TRADER_NEWS")).toEqual({});
     expect(book.spentUsd("TRADER_NEWS")).toBe(0);
     expect(book.all()).toEqual({ TRADER_NEWS: {}, TRADER_DIP: { WIF: 150 } });
+  });
+});
+
+describe("paper P&L", () => {
+  it("marks each position from the session price to the closing price", () => {
+    const tokens = { POPCAT: { priceUsd: 0.4, closePriceUsd: 0.5 }, WIF: { priceUsd: 2, closePriceUsd: 1.5 } };
+    expect(paperPnlUsd({ POPCAT: 200, WIF: 100 }, tokens)).toBeCloseTo(50 - 25);
+    expect(paperPnlUsd({}, tokens)).toBe(0);
   });
 });

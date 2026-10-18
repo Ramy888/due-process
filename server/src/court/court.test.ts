@@ -44,7 +44,7 @@ function alerts(store: DeskStore) {
 const charges = {
   charges: [
     { defendant: "Meme Hunter", count: "Trading ahead of a signal it sold", allegation: "It sold a tip, then bought first.", citations: ["LICENCE-EMBARGO", "FINRA-5270", "MICA-89"], exhibits: ["E1", "E4", "E6"] },
-    { defendant: "Desk Chief", count: "Failure to supervise", allegation: "Its auto-approve rule let split orders through unreviewed.", citations: ["LICENCE-CHIEF", "FINRA-3110", "MICA-92"], exhibits: ["E2", "E10"] },
+    { defendant: "Desk Chief", count: "Failure to supervise", allegation: "Its auto-approve rule let split orders through unreviewed.", citations: ["LICENCE-CHIEF", "FINRA-3110", "MICA-92"], exhibits: ["E2", "E11"] },
   ],
 };
 const ruling: JudgeAnswer = {
@@ -76,7 +76,8 @@ function court(overrides: Partial<Record<string, unknown>> = {}) {
   };
   const store = new DeskStore(":memory:");
   const runtime = new AgentRuntime(model, new ReplayCache(join(mkdtempSync(join(tmpdir(), "court-")), "c.jsonl")), "cache-first");
-  return { store, inputs, deps: { runtime, store, policies, names, buyerName: () => "KOL Narrative" } };
+  const market = { POPCAT: { priceUsd: 0.41, closePriceUsd: 0.47 } };
+  return { store, inputs, deps: { runtime, store, policies, names, market, buyerName: () => "KOL Narrative" } };
 }
 
 describe("AI court", () => {
@@ -84,7 +85,8 @@ describe("AI court", () => {
     const c = court();
     const result = await tryCase(c.deps, "run-1", alerts(c.store));
     expect(result!.file.defendants).toEqual(["Meme Hunter", "Desk Chief"]);
-    expect(result!.file.exhibits.map((e) => e.kind)).toEqual(["alert", "alert", "alert", "signal-sale", "signal-sale", "trade", "trade", "trade", "licence", "desk-rule"]);
+    expect(result!.file.exhibits.map((e) => e.kind)).toEqual(["alert", "alert", "alert", "signal-sale", "signal-sale", "trade", "trade", "trade", "market", "licence", "desk-rule"]);
+    expect(result!.file.exhibits[8].facts).toMatchObject({ movePct: 14.6, paperGains: [{ trader: "Meme Hunter", boughtUsd: 270, paperGainUsd: 39.51 }] });
     expect(c.store.trailEntries("run-1:case").map((e) => e.kind)).toEqual(["case.opened", "case.referral", "case.charges", "case.defense", "case.defense", "case.ruling"]);
     expect(c.inputs.defense).toHaveLength(2);
   });

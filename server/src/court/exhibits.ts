@@ -11,7 +11,7 @@ import type { Alert } from "./surveillance.js";
 
 export type Exhibit = {
   id: string;
-  kind: "alert" | "signal-sale" | "trade" | "licence" | "desk-rule";
+  kind: "alert" | "signal-sale" | "trade" | "market" | "licence" | "desk-rule";
   title: string;
   facts: Record<string, unknown>;
   refs: Record<string, string | null>;
@@ -27,7 +27,14 @@ const nameOf = (k: TraderKey) => traders.find((t) => t.key === k)?.name ?? k;
 /** Coarse timing so small run-to-run clock differences do not change what the court reads. */
 const within = (minutes: number) => `within ${Math.max(5, Math.ceil(minutes / 5) * 5)} minutes`;
 
-export function buildExhibits(alerts: Alert[], policies: ReadonlyMap<TraderKey, MandatePolicy>, buyerName: (address: string) => string): Exhibit[] {
+export type MarketPrices = Record<string, { priceUsd: number; closePriceUsd: number }>;
+
+export function buildExhibits(
+  alerts: Alert[],
+  policies: ReadonlyMap<TraderKey, MandatePolicy>,
+  buyerName: (address: string) => string,
+  market: MarketPrices,
+): Exhibit[] {
   const exhibits: Exhibit[] = [];
   const add = (e: Omit<Exhibit, "id">) => {
     const ex = { id: `E${exhibits.length + 1}`, ...e };
@@ -58,6 +65,23 @@ export function buildExhibits(alerts: Alert[], policies: ReadonlyMap<TraderKey, 
 
   sales.forEach((s, i) => saleExhibit(add, s, i + 1, buyerName(s.buyerAddress), sinceStart(s.at)));
   trades.forEach((t, i) => tradeExhibit(add, t, i + 1, sinceStart(t.at)));
+
+  for (const symbol of uniqueBy(alerts.map((a) => a.symbol), (s) => s)) {
+    const m = market[symbol];
+    if (!m) continue;
+    const movePct = Math.round((m.closePriceUsd / m.priceUsd - 1) * 1000) / 10;
+    const held = trades.filter((t) => t.symbol === symbol && t.side === "buy");
+    const gains = Object.entries(Object.groupBy(held, (t) => nameOf(t.trader))).map(([trader, ts]) => {
+      const usd = (ts ?? []).reduce((s, t) => s + t.notionalUsd, 0);
+      return { trader, boughtUsd: usd, paperGainUsd: Math.round(usd * (m.closePriceUsd / m.priceUsd - 1) * 100) / 100 };
+    });
+    add({
+      kind: "market",
+      title: `${symbol} price over the session`,
+      facts: { coin: symbol, priceWhenTradedUsd: m.priceUsd, closingPriceUsd: m.closePriceUsd, movePct, paperGains: gains, note: "Paper trading: simulated prices from the scenario's frozen snapshot." },
+      refs: {},
+    });
+  }
 
   for (const key of uniqueBy(alerts.map((a) => a.trader), (k) => k)) {
     const t = traders.find((x) => x.key === key)!;

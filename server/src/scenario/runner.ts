@@ -121,7 +121,12 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
     emit({ type: "surveillance.alerts", runId, alerts: alerts.map((a) => ({ code: a.code, trader: a.trader, symbol: a.symbol, detail: a.detail, unreviewed: a.unreviewed })) });
 
     let enforcement: Enforcement | undefined;
-    const tried = await tryCase({ runtime, store: deps.store, policies, names, buyerName: (a) => names[byAddress.get(a.toLowerCase()) ?? ""] ?? a }, runId, alerts);
+    const market = Object.fromEntries(Object.entries(scenario.tokens).map(([sym, t]) => [sym, { priceUsd: t.priceUsd, closePriceUsd: t.closePriceUsd }]));
+    const tried = await tryCase(
+      { runtime, store: deps.store, policies, names, market, buyerName: (a) => names[byAddress.get(a.toLowerCase()) ?? ""] ?? a },
+      runId,
+      alerts,
+    );
     if (tried) {
       const byName = new Map(traders.map((t) => [t.name, traderAddress(t.key)]));
       enforcement = await enforceSanctions(

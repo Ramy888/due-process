@@ -14,7 +14,10 @@ const token = z.object({
   chain: z.enum(["solana", "base-sepolia"]),
   /** A mint/contract address, or "deployment:<key>" for a token this project deploys (resolved per network). */
   address: z.string(),
+  /** Price when the desk trades (all paper trades fill here). */
   priceUsd: z.number().positive(),
+  /** Price at the end of the session, for paper profit and loss. */
+  closePriceUsd: z.number().positive(),
   liquidityUsd: z.number().nonnegative(),
   change24hPct: z.number(),
   staged: z.boolean().optional(),
