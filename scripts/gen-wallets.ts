@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, appendFileSync, chmodSync } from "node:fs";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
-const ROLES = ["DESK", "CHIEF", "HUMAN_APPROVER", "TRADER_KOL", "TRADER_WHALE", "TRADER_NEWS", "TRADER_MEME", "TRADER_DIP"];
+const ROLES = ["DESK", "CHIEF", "HUMAN_APPROVER", "FROG_DEPLOYER", "TRADER_KOL", "TRADER_WHALE", "TRADER_NEWS", "TRADER_MEME", "TRADER_DIP"];
 const envPath = new URL("../.env", import.meta.url);
 const current = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
 

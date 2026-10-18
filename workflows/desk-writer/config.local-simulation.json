@@ -1,0 +1,6 @@
+{
+  "mode": "local-simulation",
+  "chainSelectorName": "ethereum-testnet-sepolia-base-1",
+  "gasLimit": "1500000",
+  "authorizedKeys": []
+}
