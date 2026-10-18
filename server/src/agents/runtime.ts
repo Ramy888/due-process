@@ -19,6 +19,8 @@ export type AgentTask<S extends z.ZodType> = {
   input: unknown;
   schema: S;
   effort: Effort;
+  /** Role-specific checks beyond the schema. An answer that fails them is never cached; a fresh one is asked once. */
+  validate?: (output: z.infer<S>) => void;
 };
 
 /** Calls a model and returns the raw JSON answer. Swapped for a fake in tests. */
@@ -59,12 +61,26 @@ export class AgentRuntime {
   async run<S extends z.ZodType>(task: AgentTask<S>): Promise<AgentResult<z.infer<S>>> {
     const key = replayKey({ model: MODEL, role: task.role, system: task.system, schema: z.toJSONSchema(task.schema), input: task.input });
     const hit = this.mode === "live" ? undefined : this.cache.get(key);
-    if (hit) return { output: task.schema.parse(hit.output), key, source: "cache" };
+    if (hit) {
+      const output = task.schema.parse(hit.output);
+      task.validate?.(output);
+      return { output, key, source: "cache" };
+    }
     if (this.mode === "replay") throw new Error(`replay mode: no recorded answer for ${task.role} (${key.slice(0, 12)})`);
 
-    const output = task.schema.parse(await this.model(task));
-    this.cache.put({ key, role: task.role, model: MODEL, input: task.input, output });
-    return { output, key, source: "model" };
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const output = task.schema.parse(await this.model(task));
+        task.validate?.(output);
+        this.cache.put({ key, role: task.role, model: MODEL, input: task.input, output });
+        return { output, key, source: "model" };
+      } catch (e) {
+        if (e instanceof RefusalError) throw e;
+        lastError = e;
+      }
+    }
+    throw lastError;
   }
 }
 

@@ -1,0 +1,47 @@
+{
+  "_note": "SIMULATED. Posts come from synthetic personas (not real people), headlines from made-up outlets, and market numbers are a frozen snapshot used for paper trades only. Not financial or legal advice.",
+  "id": "frog-day",
+  "title": "Frog Day: a desk of AI traders under supervision",
+  "snapshotLabel": "Frozen market snapshot (paper trading)",
+  "tokens": {
+    "FROG": { "chain": "base-sepolia", "address": "deployment:frogToken", "priceUsd": 0.0042, "liquidityUsd": 820000, "change24hPct": 64, "staged": true },
+    "WIF": { "chain": "solana", "address": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", "priceUsd": 1.84, "liquidityUsd": 5800000, "change24hPct": -18 },
+    "POPCAT": { "chain": "solana", "address": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "priceUsd": 0.41, "liquidityUsd": 4050000, "change24hPct": 6 },
+    "JUP": { "chain": "solana", "address": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", "priceUsd": 0.52, "liquidityUsd": 3820000, "change24hPct": 1 }
+  },
+  "beats": [
+    {
+      "id": "frog-convergence",
+      "title": "Six voices push $FROG at once",
+      "trader": "TRADER_KOL",
+      "candidates": ["FROG", "JUP"],
+      "feed": [
+        { "kind": "post", "handle": "@moonmaxi_sim", "minute": -52, "text": "$FROG is the next 100x. Base is waking up. Not selling a single one." },
+        { "kind": "post", "handle": "@degen_dana_sim", "minute": -47, "text": "Loaded my bags with $FROG. Chart looks like a rocket on the launchpad." },
+        { "kind": "post", "handle": "@chartwizard_sim", "minute": -39, "text": "$FROG breaking out of a 3-day range on rising volume. Targets above." },
+        { "kind": "post", "handle": "@alpha_aisha_sim", "minute": -31, "text": "Hearing big partnerships for $FROG this week. You did not hear it from me." },
+        { "kind": "post", "handle": "@solsensei_sim", "minute": -22, "text": "Lots of people asking about $FROG. Do your own research, but it is trending." },
+        { "kind": "post", "handle": "@whalewatch_sim", "minute": -9, "text": "Fresh wallets accumulating $FROG over the last hour." }
+      ]
+    },
+    {
+      "id": "news-wif",
+      "title": "Two outlets confirm the same WIF story",
+      "trader": "TRADER_NEWS",
+      "candidates": ["WIF", "JUP"],
+      "feed": [
+        { "kind": "news", "source": "Coin Ledger Daily (simulated)", "minute": -30, "text": "Major exchange lists WIF perpetual futures starting next week." },
+        { "kind": "news", "source": "Market Desk Wire (simulated)", "minute": -12, "text": "Exchange confirms WIF futures listing; trading opens Monday." }
+      ]
+    },
+    {
+      "id": "dip-wif",
+      "title": "WIF falls 18% in a day",
+      "trader": "TRADER_DIP",
+      "candidates": ["WIF", "POPCAT"],
+      "feed": [
+        { "kind": "market", "minute": -5, "text": "WIF is down 18% in 24 hours after a broad meme-coin sell-off; pool liquidity unchanged at $5.8M." }
+      ]
+    }
+  ]
+}

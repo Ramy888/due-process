@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkMandate, compileMandate, RULES, type MandatePolicy, type ProposedTrade, type RuleCode } from "./mandate.js";
+import { checkMandate, compileMandate, describeLimits, RULES, type MandatePolicy, type ProposedTrade, type RuleCode } from "./mandate.js";
 import { AgentRuntime, type ModelFn } from "./runtime.js";
 import { ReplayCache } from "./replay.js";
 import { Trail } from "./trail.js";
@@ -47,6 +47,10 @@ describe("checkMandate", () => {
     expect(checkMandate(policy, ALLOCATION, { ...ok, ...change })).toEqual([rule]);
   });
 
+  it("treats a chain the desk does not support at all as not allowed", () => {
+    expect(checkMandate({ ...policy, allowedChains: ["solana", "base-sepolia"] }, ALLOCATION, { ...ok, chain: "ethereum" })).toEqual(["CHAIN_NOT_ALLOWED"]);
+  });
+
   it("allows trading on a sold signal once the embargo has passed", () => {
     expect(checkMandate(policy, ALLOCATION, { ...ok, minutesSinceSoldSignal: 30 })).toEqual([]);
   });
@@ -62,7 +66,7 @@ function compilerModel(slip = false): ModelFn {
 }
 
 const runtime = (model: ModelFn) => new AgentRuntime(model, new ReplayCache(join(mkdtempSync(join(tmpdir(), "mc-")), "c.jsonl")), "cache-first");
-const req = { trader: "meme-hunter", mandate: "No tokens under $5M liquidity, max 5% per position.", allocationUsd: ALLOCATION };
+const req = { trader: "meme-hunter", mandate: "No tokens under $5M liquidity, max 5% per position.", allocationUsd: ALLOCATION, deskRules: [] };
 
 describe("Mandate Compiler", () => {
   it("compiles a mandate whose ten red-team trades are all caught, and records it on the trail", async () => {
@@ -84,5 +88,19 @@ describe("Mandate Compiler", () => {
   it("refuses an unusable policy", async () => {
     const broken: ModelFn = async () => ({ ...(await compilerModel()({} as never) as object), policy: { ...policy, maxPositionPctOfAllocation: 140 } });
     await expect(compileMandate(runtime(broken), new Trail("licences"), req)).rejects.toThrow(/unusable policy/);
+  });
+});
+
+describe("describeLimits", () => {
+  it("states every limit with exact numbers, and makes clear the embargo is only about signals the trader sells", () => {
+    const lines = describeLimits(policy, ALLOCATION);
+    expect(lines).toContain("No single trade over $500.");
+    expect(lines).toContain("Never hold more than $100 of one coin (5% of your $2000 allocation).");
+    expect(lines.at(-1)).toMatch(/SELL a trading signal .* 30 minutes .* news and posts you read have no waiting time/);
+  });
+
+  it("says plainly when a rule is switched off", () => {
+    const lines = describeLimits({ ...policy, deniedTokens: [], signalEmbargoMinutes: 0, minLiquidityUsd: 0 }, ALLOCATION);
+    expect(lines).toEqual(expect.arrayContaining(["No banned tokens.", "No waiting time after selling a signal.", "No minimum pool size."]));
   });
 });

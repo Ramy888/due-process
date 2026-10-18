@@ -31,7 +31,8 @@ export const mandatePolicy = z.object({
 export type MandatePolicy = z.infer<typeof mandatePolicy>;
 
 export const proposedTrade = z.object({
-  chain: z.enum(["solana", "base-sepolia"]),
+  /** Any chain name: a red-team trade may name a chain the desk does not support at all. */
+  chain: z.string(),
   token: z.string(),
   notionalUsd: z.number(),
   positionAfterUsd: z.number(),
@@ -52,7 +53,7 @@ const compilerAnswer = z.object({
 const SYSTEM = `You are the Mandate Compiler of Due Process, a supervised desk of AI trading agents that make practice trades only.
 You turn one trader's licence mandate, written in plain English, into exact numeric limits.
 
-Rules you can set (use every one; pick a permissive value when the mandate is silent and say so in plainEnglish):
+Rules you can set:
 ${Object.entries(RULES)
   .map(([code, meaning]) => `- ${code}: ${meaning}`)
   .join("\n")}
@@ -61,9 +62,17 @@ Field meanings: maxTradeUsd and minLiquidityUsd are US dollars; maxPositionPctOf
 allocationUsd; maxTradesPerHour is a whole number; signalEmbargoMinutes is whole minutes (0 means no embargo);
 allowedChains lists the chains the trader may trade on ("solana", "base-sepolia"); deniedTokens lists token addresses.
 
-Then red-team your own limits: write exactly 10 trades, each designed to break exactly one rule ("breaks"), covering
-every rule at least once, and staying inside every other limit. Make them realistic and close to the edge (just over a
-limit, not absurdly over). plainEnglish is at most 3 sentences, no jargon.`;
+Set each limit from the mandate and from deskRules (rules that apply to every licence). Where both are silent, use the
+permissive value: deniedTokens [], signalEmbargoMinutes 0, minLiquidityUsd 0, maxPositionPctOfAllocation 100,
+maxTradeUsd equal to allocationUsd, maxTradesPerHour 60, and both chains. Never invent token addresses or placeholders;
+list a token only if the mandate identifies it. Say in plainEnglish which limits came from the mandate and which are
+defaults.
+
+Then red-team your own limits: write exactly 10 trades. Each breaks exactly one active rule ("breaks") and stays
+inside every other limit. A rule is active when its value restricts something (CHAIN_NOT_ALLOWED is always active:
+use a chain such as "ethereum" when both supported chains are allowed). Cover every active rule at least once. Make
+the trades realistic and close to the edge (just over a limit, not absurdly over). plainEnglish is at most 3
+sentences, no jargon.`;
 
 export type RedTeamResult = { description: string; trade: ProposedTrade; breaks: RuleCode; violations: RuleCode[]; caught: boolean };
 export type CompiledMandate = {
@@ -80,7 +89,7 @@ export type CompiledMandate = {
 /** Deterministic: which limits does this trade break? */
 export function checkMandate(policy: MandatePolicy, allocationUsd: number, t: ProposedTrade): RuleCode[] {
   const v: RuleCode[] = [];
-  if (!policy.allowedChains.includes(t.chain)) v.push("CHAIN_NOT_ALLOWED");
+  if (!(policy.allowedChains as string[]).includes(t.chain)) v.push("CHAIN_NOT_ALLOWED");
   if (policy.deniedTokens.some((d) => d.toLowerCase() === t.token.toLowerCase())) v.push("TOKEN_DENIED");
   if (t.notionalUsd > policy.maxTradeUsd) v.push("TRADE_TOO_LARGE");
   if (t.positionAfterUsd > (policy.maxPositionPctOfAllocation / 100) * allocationUsd) v.push("POSITION_TOO_LARGE");
@@ -104,7 +113,7 @@ function assertSane(p: MandatePolicy) {
 export async function compileMandate(
   runtime: AgentRuntime,
   trail: Trail,
-  req: { trader: string; mandate: string; allocationUsd: number },
+  req: { trader: string; mandate: string; allocationUsd: number; deskRules: readonly string[] },
 ): Promise<CompiledMandate> {
   const { output, key, source } = await runtime.run({
     role: "mandate-compiler",
@@ -112,9 +121,11 @@ export async function compileMandate(
     input: req,
     schema: compilerAnswer,
     effort: "medium",
+    validate: (answer) => {
+      assertSane(answer.policy);
+      if (answer.redTeam.length !== 10) throw new Error(`Mandate Compiler wrote ${answer.redTeam.length} red-team trades, not 10`);
+    },
   });
-  assertSane(output.policy);
-  if (output.redTeam.length !== 10) throw new Error(`Mandate Compiler wrote ${output.redTeam.length} red-team trades, not 10`);
 
   const redTeam = output.redTeam.map((r) => {
     const violations = checkMandate(output.policy, req.allocationUsd, r.trade);
@@ -139,4 +150,20 @@ export async function compileMandate(
     replayKey: key,
   });
   return compiled;
+}
+
+/** The limits as plain sentences, for agents and people: exact numbers, no field names to misread. */
+export function describeLimits(p: MandatePolicy, allocationUsd: number): string[] {
+  const capUsd = Math.round((p.maxPositionPctOfAllocation / 100) * allocationUsd);
+  return [
+    `Trade only on: ${p.allowedChains.join(" and ")}.`,
+    `No single trade over $${p.maxTradeUsd}.`,
+    `Never hold more than $${capUsd} of one coin (${p.maxPositionPctOfAllocation}% of your $${allocationUsd} allocation).`,
+    p.minLiquidityUsd > 0 ? `Only coins whose pool holds at least $${p.minLiquidityUsd}.` : "No minimum pool size.",
+    `At most ${p.maxTradesPerHour} trades in any hour.`,
+    p.deniedTokens.length > 0 ? `Never trade these tokens: ${p.deniedTokens.join(", ")}.` : "No banned tokens.",
+    p.signalEmbargoMinutes > 0
+      ? `If you SELL a trading signal about a coin to another agent, you may not trade that coin yourself for ${p.signalEmbargoMinutes} minutes afterwards. This is only about signals you sell; news and posts you read have no waiting time.`
+      : "No waiting time after selling a signal.",
+  ];
 }

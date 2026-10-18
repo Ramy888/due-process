@@ -3,13 +3,18 @@ import { EventEmitter } from "node:events";
 import type { Address, Hex } from "viem";
 import type { ClearanceResult } from "./clearance.js";
 import type { TrailEntry } from "./agents/trail.js";
+import type { TraderDecision } from "./agents/trader.js";
+import type { TraderKey } from "./traders.js";
 
 export type DeskEvent =
   | { type: "clearance.started"; clearanceId: Hex; trader: Address; chain: string; token: string; notionalE6: string }
   | { type: "cre.line"; clearanceId: Hex; line: string }
   | { type: "clearance.result"; result: ClearanceResult; log: string }
   | { type: "clearance.failed"; clearanceId: Hex; error: string }
-  | { type: "trail.entry"; entry: TrailEntry };
+  | { type: "trail.entry"; entry: TrailEntry }
+  | { type: "beat.started"; beatId: string; title: string; trader: TraderKey }
+  | { type: "trader.decision"; beatId: string; trader: TraderKey; decision: TraderDecision }
+  | { type: "beat.finished"; beatId: string; verdict: string | null; trailId: string; trailHead: Hex };
 
 const bus = new EventEmitter();
 bus.setMaxListeners(100);

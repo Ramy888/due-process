@@ -77,4 +77,19 @@ describe("agent runtime", () => {
     writeFileSync(file, readFileSync(file, "utf8").replace('"approve":true', '"approve":"of course"'));
     await expect(new AgentRuntime(countingModel().fn, new ReplayCache(file), "replay").run(task({ trade: 1 }))).rejects.toThrow();
   });
+
+  it("asks once more when an answer fails the role's checks, and never caches the failed one", async () => {
+    const file = cacheFile();
+    const replies = [{ approve: true, reason: "" }, { approve: true, reason: "within budget" }];
+    const model: ModelFn = async () => replies.shift();
+    const rt = new AgentRuntime(model, new ReplayCache(file), "cache-first");
+    const strict = { ...task({ trade: 1 }), validate: (o: { reason: string }) => { if (!o.reason) throw new Error("no reason given"); } };
+    expect((await rt.run(strict)).output.reason).toBe("within budget");
+    expect(readFileSync(file, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  it("gives up after the retry fails too", async () => {
+    const rt = new AgentRuntime(countingModel({ approve: true, reason: "" }).fn, new ReplayCache(cacheFile()), "cache-first");
+    await expect(rt.run({ ...task({ trade: 1 }), validate: () => { throw new Error("no reason given"); } })).rejects.toThrow("no reason given");
+  });
 });

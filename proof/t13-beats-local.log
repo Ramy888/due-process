@@ -1,0 +1,15 @@
+licence TRADER_KOL   source=cache caught=10/10 defects=0 | {"maxTradeUsd":300,"maxPositionPctOfAllocation":10,"minLiquidityUsd":500000,"allowedChains":["solana","base-sepolia"],"deniedTokens":[],"maxTradesPerHour":4,"signalEmbargoMinutes":30}
+licence TRADER_WHALE source=cache caught=10/10 defects=0 | {"maxTradeUsd":500,"maxPositionPctOfAllocation":15,"minLiquidityUsd":1000000,"allowedChains":["solana"],"deniedTokens":[],"maxTradesPerHour":3,"signalEmbargoMinutes":30}
+licence TRADER_NEWS  source=model caught=10/10 defects=0 | {"maxTradeUsd":400,"maxPositionPctOfAllocation":10,"minLiquidityUsd":2000000,"allowedChains":["solana"],"deniedTokens":[],"maxTradesPerHour":2,"signalEmbargoMinutes":30}
+licence TRADER_MEME  source=model caught=10/10 defects=0 | {"maxTradeUsd":150,"maxPositionPctOfAllocation":5,"minLiquidityUsd":250000,"allowedChains":["solana"],"deniedTokens":[],"maxTradesPerHour":6,"signalEmbargoMinutes":30}
+licence TRADER_DIP   source=model caught=10/10 defects=0 | {"maxTradeUsd":250,"maxPositionPctOfAllocation":10,"minLiquidityUsd":1000000,"allowedChains":["solana"],"deniedTokens":[],"maxTradesPerHour":4,"signalEmbargoMinutes":30}
+
+beat news-wif: trade WIF $200 -> CLEARED []
+  reasoning: Two independent news sources agree that a major exchange is listing WIF futures, which meets my two-source rule. WIF is on Solana with $5.8M in its pool, well above the $2M floor. I hold nothing yet, so a $200 buy stays within both the $400 per-trade limit and the $200 per-coin cap.
+  trail local-1:news-wif head 0x5daf4a01a1d5c11096b8abf314a00c10a8a9af3783a3bf85888a960786dad7d6
+
+beat dip-wif: trade WIF $200 -> CLEARED []
+  reasoning: WIF fell 18% in a day, which is a dip larger than the 15% my mandate targets, and it trades on Solana with $5.8M in its pool. I hold nothing yet, so a $200 buy stays within both the $250 per-trade cap and the $200 per-coin holding cap. I plan to exit at +10% or -7%.
+  trail local-1:dip-wif head 0xea88cc19c23fe1e4d7884d7d46f2a1dcbe1921c8b86a0e17f804e405a51de1a4
+
+total 110s

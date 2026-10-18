@@ -36,5 +36,8 @@
     "key": "CHIEF",
     "name": "Desk Chief",
     "mandate": "Supervise every trader; approve only trades that fit the desk."
-  }
+  },
+  "deskRules": [
+    "Never trade a coin within 30 minutes of selling a signal on it to another agent."
+  ]
 }
