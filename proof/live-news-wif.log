@@ -1,0 +1,18 @@
+
+> scenario
+> npm exec -w server -- tsx src/cli/run-scenario.ts --beats news-wif --cosign approve
+
+
+== news-wif: Two outlets confirm the same WIF story
+   TRADER_NEWS: trade WIF $200 | Two independent news sources agree that a major exchange is listing WIF futures, which meets my two-source rule. WIF is on Solana with $5.8M in its pool, well above the $2M floor. I hold nothing yet, so a $200 buy stays within both the $400 per-trade limit and the $200 per-coin cap.
+   clearance CLEARED [] (proof/runs/2026-10-18T18-03-55-133Z-clearance-55a41e67.log)
+   chief: approved | The trader wants to spend $200 of practice money on the WIF coin, based on news confirmed by two separate sources, and this breaks none of the trader's rules. No other trader on the desk holds WIF, so the desk as a whole does not take on too much risk in one coin.
+   co-sign requested for $200 WIF: approve
+   ledger trade (ledger) tx=0x8a9dd007f9b536cff9bd5bf9a5bd3c2746950f4f74fd406cd098ab4955f7db95
+
+== surveillance: 0 alert(s)
+
+
+run frog-day-2026-10-18T18-03-54-246Z
+holdings {"TRADER_NEWS":{"WIF":200}}
+trades recorded 1, signal sales 0

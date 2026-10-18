@@ -1,0 +1,7 @@
+{
+  "mode": "ledger",
+  "chainSelectorName": "ethereum-testnet-sepolia-base-1",
+  "gasLimit": "1500000",
+  "authorizedKeys": [],
+  "deskLedger": "0xcB6fAEd8B78ED4f3CEfA85D4D384804bB866687C"
+}

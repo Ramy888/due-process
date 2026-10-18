@@ -18,8 +18,11 @@ export async function fundTraders(opts: { deskKey: Hex; token: Address; traders:
   const out: { trader: Address; txHash: Hex; balance: bigint }[] = [];
   for (const trader of opts.traders) {
     const txHash = await wallet.writeContract({ address: opts.token, abi: erc20, functionName: "transfer", args: [trader, opts.amountE6] });
-    await pub.waitForTransactionReceipt({ hash: txHash });
-    out.push({ trader, txHash, balance: await pub.readContract({ address: opts.token, abi: erc20, functionName: "balanceOf", args: [trader] }) });
+    const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
+    if (receipt.status !== "success") throw new Error(`USDC transfer to ${trader} failed (${txHash})`);
+    // read at the transfer's block: a load-balanced public RPC can otherwise answer from a node that is behind
+    const balance = await pub.readContract({ address: opts.token, abi: erc20, functionName: "balanceOf", args: [trader], blockNumber: receipt.blockNumber });
+    out.push({ trader, txHash, balance });
   }
   return out;
 }
