@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ROOT } from "./env.js";
-import { CreRunError, parseSimulationResult, runCre, type CreRunnerConfig } from "./cre.js";
+import { CreRunError, failureLine, parseSimulationResult, runCre, type CreRunnerConfig } from "./cre.js";
 
 // A real `cre workflow simulate clearance` log (BONK, local-simulation), recorded 2026-10-18.
 const BONK_LOG = `${ROOT}proof/t9-clearance-bonk-local.log`;
@@ -34,6 +34,15 @@ describe("parseSimulationResult", () => {
 
   it("returns undefined when the run produced no result", () => {
     expect(parseSimulationResult("Initializing...\nError: workflow panicked\n")).toBeUndefined();
+  });
+});
+
+describe("failureLine", () => {
+  it("picks the line that says why the simulation failed", () => {
+    const log = "✓ Workflow compiled\n[SIMULATION] Received interrupt signal\n✗ workflow execution failed: Cannot decode zero data (\"0x\")\n\nVersion: viem@2.57.7\n";
+    expect(failureLine(log)).toBe('workflow execution failed: Cannot decode zero data ("0x")');
+    expect(failureLine("Error: RPC unreachable\n")).toBe("Error: RPC unreachable");
+    expect(failureLine("just output\n")).toBe("just output");
   });
 });
 

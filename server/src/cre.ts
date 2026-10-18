@@ -58,6 +58,13 @@ export function creEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
+/** The line that says why a simulation failed (the CLI prints it after "✗" or "Error:"), else the last line. */
+export function failureLine(log: string): string {
+  const lines = log.split("\n").map((l) => l.trim()).filter(Boolean);
+  const why = [...lines].reverse().find((l) => /^(✗|Error:)|failed:/.test(l));
+  return (why ?? lines.at(-1) ?? "no output").replace(/^✗\s*/, "");
+}
+
 let queue: Promise<unknown> = Promise.resolve();
 const oneAtATime = <T>(task: () => Promise<T>): Promise<T> => {
   const run = queue.then(task, task);
@@ -108,8 +115,7 @@ async function runOnce(opts: CreRunOptions, config: CreRunnerConfig): Promise<Cr
     });
     const result = parseSimulationResult(log);
     if (exitCode !== 0 || result === undefined) {
-      const tail = log.trim().split("\n").slice(-5).join("\n");
-      throw new CreRunError(`cre ${opts.workflow} failed (exit ${exitCode}):\n${tail}`, logPath);
+      throw new CreRunError(`cre ${opts.workflow} failed (exit ${exitCode}): ${failureLine(log)}`, logPath);
     }
     return { runId, result, logPath };
   } finally {

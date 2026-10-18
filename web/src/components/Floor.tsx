@@ -79,7 +79,13 @@ function Item({ item, state }: { item: BeatItem; state: DeskState }) {
         <div className="text-sm">
           <Badge tone={CHIEF_TONE[item.outcome] ?? "gray"}>{CHIEF_LABEL[item.outcome] ?? item.outcome}</Badge>
           <p className="mt-1 text-stone-700">{item.reason}</p>
-          {item.concerns.length > 0 && <p className="mt-0.5 text-xs text-stone-500">Concerns: {item.concerns.join("; ")}</p>}
+          {item.concerns.length > 0 && (
+            <ul className="mt-1 list-disc pl-5 text-xs text-stone-500">
+              {item.concerns.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          )}
         </div>
       );
     case "ledger":

@@ -9,7 +9,7 @@ export function Market({ state }: { state: DeskState }) {
           <tr>
             <th className="pb-2 font-medium">Coin</th>
             <th className="pb-2 font-medium">Pool</th>
-            <th className="pb-2 text-right font-medium">Traded at</th>
+            <th className="pb-2 text-right font-medium whitespace-nowrap">Traded at</th>
             <th className="pb-2 text-right font-medium">Close</th>
           </tr>
         </thead>
@@ -20,10 +20,12 @@ export function Market({ state }: { state: DeskState }) {
               <tr key={sym}>
                 <td className="py-2">
                   <div className="font-medium">{sym}</div>
-                  <div className="flex items-center gap-1 text-xs text-stone-500">
-                    {t.chain === "solana" ? "Solana · real token" : "Base Sepolia"}
-                    {t.staged && <Badge tone="violet">staged scam</Badge>}
-                  </div>
+                  <div className="text-xs text-stone-500">{t.chain === "solana" ? "Solana · real token" : "Base Sepolia"}</div>
+                  {t.staged && (
+                    <div className="mt-0.5">
+                      <Badge tone="violet">staged scam</Badge>
+                    </div>
+                  )}
                 </td>
                 <td className="py-2 text-stone-600">${(t.liquidityUsd / 1e6).toFixed(2)}M</td>
                 <td className="py-2 text-right font-mono text-xs">${t.priceUsd}</td>
