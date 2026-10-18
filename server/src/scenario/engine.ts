@@ -1,6 +1,7 @@
 // Plays scenario beats: a trader reads its feed and proposes a trade, pays for clearance, and later stages (the Desk
 // Chief, the ledger) act on the verdict. Every step lands on the beat's trail and on the event bus.
 import type { Address, Hex } from "viem";
+import { SIGNAL_PRICE } from "../x402.js";
 import { compileMandate, type CompiledMandate, type MandatePolicy } from "../agents/mandate.js";
 import type { AgentRuntime } from "../agents/runtime.js";
 import { decide, type TraderDecision } from "../agents/trader.js";
@@ -30,6 +31,10 @@ export type BeatContext = {
 /** What happens after clearance (the Desk Chief, then the ledger). Plugged in by later stages. */
 export type AfterClearance = (ctx: BeatContext) => Promise<unknown>;
 
+export type SignalPurchase = { text: string; settlementTx: Hex | null };
+/** A trader buys another trader's signal over x402, paying the seller's wallet. */
+export type BuySignal = (buyer: TraderKey, signalId: string) => Promise<SignalPurchase>;
+
 export type EngineDeps = {
   runtime: AgentRuntime;
   store: DeskStore;
@@ -38,16 +43,19 @@ export type EngineDeps = {
   requestClearance: RequestClearance;
   /** Distinguishes runs of the same scenario; part of every trail id. */
   runId: string;
+  addressOf: (trader: TraderKey) => Address;
+  buySignal?: BuySignal;
   resolveDeployment?: (key: string) => string;
   afterClearance?: AfterClearance;
 };
 
+export type BeatStep = { decision: TraderDecision; clearance?: ClearanceOutcome; after?: unknown };
+
 export type BeatOutcome = {
   beatId: string;
   trader: TraderKey;
-  decision: TraderDecision;
-  clearance?: ClearanceOutcome;
-  after?: unknown;
+  steps: BeatStep[];
+  signalId?: string;
   trailId: string;
   trailHead: Hex;
 };
@@ -81,31 +89,94 @@ export async function runBeat(deps: EngineDeps, scenario: Scenario, beatId: stri
   emit({ type: "beat.started", beatId: beat.id, title: beat.title, trader: trader.key });
   trail.append("desk", "beat.started", { beat: beat.id, title: beat.title, trader: trader.name, feed: beat.feed });
 
-  const market = Object.fromEntries(
-    beat.candidates.map((sym) => {
-      const { chain, priceUsd, liquidityUsd, change24hPct } = scenario.tokens[sym];
-      return [sym, { chain, priceUsd, liquidityUsd, change24hPct }];
-    }),
-  );
-  const { decision, key, source } = await decide(deps.runtime, {
-    trader,
-    limits,
-    allocationUsd: DESK.allocationUsd,
-    spentUsd: deps.book.spentUsd(trader.key),
-    holdingsUsd: deps.book.holdingsUsd(trader.key),
-    feed: beat.feed,
-    market,
+  let signalId: string | undefined;
+  if (beat.signalSale) signalId = await sellSignal(deps, beat, trader, trail);
+
+  // Each proposal is announced just before it is checked, so staged orders interleave with their clearances.
+  const decisions: { decision: TraderDecision; announce: () => void }[] = [];
+  if (beat.staged) {
+    const { label, orders } = beat.staged;
+    for (const o of orders) {
+      const decision: TraderDecision = { action: "trade", symbol: o.symbol, side: o.side, notionalUsd: o.notionalUsd, reasoning: o.note, evidence: [] };
+      decisions.push({
+        decision,
+        announce: () => {
+          trail.append(trader.name, "trader.order", { staged: true, label, order: o });
+          emit({ type: "trader.decision", beatId: beat.id, trader: trader.key, decision, staged: true });
+        },
+      });
+    }
+  } else {
+    const market = Object.fromEntries(
+      beat.candidates.map((sym) => {
+        const { chain, priceUsd, liquidityUsd, change24hPct } = scenario.tokens[sym];
+        return [sym, { chain, priceUsd, liquidityUsd, change24hPct }];
+      }),
+    );
+    const { decision, key, source } = await decide(deps.runtime, {
+      trader,
+      limits,
+      allocationUsd: DESK.allocationUsd,
+      spentUsd: deps.book.spentUsd(trader.key),
+      holdingsUsd: deps.book.holdingsUsd(trader.key),
+      feed: beat.feed,
+      market,
+    });
+    decisions.push({
+      decision,
+      announce: () => {
+        trail.append(trader.name, "trader.decision", { decision, replayKey: key, source });
+        emit({ type: "trader.decision", beatId: beat.id, trader: trader.key, decision, staged: false });
+      },
+    });
+  }
+
+  const steps: BeatStep[] = [];
+  for (const { decision, announce } of decisions) {
+    announce();
+    if (decision.action === "pass") {
+      steps.push({ decision });
+      continue;
+    }
+    steps.push(await clearAndAct(deps, scenario, beat, trader, decision, trail, resolve));
+  }
+
+  const outcome: BeatOutcome = { beatId: beat.id, trader: trader.key, steps, signalId, trailId, trailHead: trail.head() };
+  emit({ type: "beat.finished", beatId: beat.id, verdict: steps.at(-1)?.clearance?.verdict ?? null, trailId, trailHead: outcome.trailHead });
+  return outcome;
+}
+
+async function sellSignal(deps: EngineDeps, beat: Beat, seller: TraderProfile, trail: Trail): Promise<string> {
+  const sale = beat.signalSale!;
+  if (!deps.buySignal) throw new Error(`beat ${beat.id} sells a signal but no buySignal client is configured`);
+  const id = `${deps.runId}-${beat.id}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  deps.store.putSignal({
+    id,
+    seller: seller.name,
+    sellerAddress: deps.addressOf(seller.key),
+    symbol: sale.symbol,
+    text: sale.text,
+    priceUsd: Number(SIGNAL_PRICE.slice(1)),
+    createdAt: new Date().toISOString(),
   });
-  trail.append(trader.name, "trader.decision", { decision, replayKey: key, source });
-  emit({ type: "trader.decision", beatId: beat.id, trader: trader.key, decision });
+  trail.append(seller.name, "signal.offered", { signalId: id, symbol: sale.symbol, text: sale.text, priceUsd: SIGNAL_PRICE });
+  for (const buyer of sale.buyers) {
+    const bought = await deps.buySignal(buyer, id);
+    if (bought.settlementTx) deps.store.attachSettlement(id, deps.addressOf(buyer), bought.settlementTx);
+    trail.append(profileOf(buyer).name, "signal.bought", { signalId: id, seller: seller.name, settlementTx: bought.settlementTx });
+  }
+  return id;
+}
 
-  const finish = (rest: Partial<BeatOutcome>): BeatOutcome => {
-    const outcome = { beatId: beat.id, trader: trader.key, decision, trailId, trailHead: trail.head(), ...rest };
-    emit({ type: "beat.finished", beatId: beat.id, verdict: outcome.clearance?.verdict ?? null, trailId, trailHead: outcome.trailHead });
-    return outcome;
-  };
-  if (decision.action === "pass") return finish({});
-
+async function clearAndAct(
+  deps: EngineDeps,
+  scenario: Scenario,
+  beat: Beat,
+  trader: TraderProfile,
+  decision: TraderDecision,
+  trail: Trail,
+  resolve: (key: string) => string,
+): Promise<BeatStep> {
   const tok = scenario.tokens[decision.symbol];
   const token = { symbol: decision.symbol, chain: tok.chain, address: tokenAddress(tok, resolve) };
   // The desk's private evidence for this check: which personas pushed the token, and who deployed it if it is ours.
@@ -135,5 +206,5 @@ export async function runBeat(deps: EngineDeps, scenario: Scenario, beatId: stri
   });
 
   const after = deps.afterClearance ? await deps.afterClearance({ scenario, beat, trader, decision, token, clearance, trail }) : undefined;
-  return finish({ clearance, after });
+  return { decision, clearance, after };
 }

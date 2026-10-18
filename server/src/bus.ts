@@ -14,11 +14,15 @@ export type DeskEvent =
   | { type: "clearance.failed"; clearanceId: Hex; error: string }
   | { type: "trail.entry"; entry: TrailEntry }
   | { type: "beat.started"; beatId: string; title: string; trader: TraderKey }
-  | { type: "trader.decision"; beatId: string; trader: TraderKey; decision: TraderDecision }
+  | { type: "trader.decision"; beatId: string; trader: TraderKey; decision: TraderDecision; staged: boolean }
   | { type: "beat.finished"; beatId: string; verdict: string | null; trailId: string; trailHead: Hex }
   | { type: "chief.decision"; beatId: string; trader: TraderKey; outcome: ChiefOutcome["outcome"]; reason: string; concerns: string[] }
-  | { type: "cosign.requested"; beatId: string; trader: TraderKey; symbol: string; notionalUsd: number }
-  | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string };
+  | { type: "cosign.requested"; id: string; beatId: string; trader: TraderKey; symbol: string; notionalUsd: number; reason: string }
+  | { type: "cosign.decided"; id: string; approved: boolean }
+  | { type: "scenario.started"; runId: string; scenarioId: string; beats: string[] }
+  | { type: "scenario.finished"; runId: string; error?: string }
+  | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string }
+  | { type: "signal.sold"; signalId: string; symbol: string; seller: string; buyer: Address };
 
 const bus = new EventEmitter();
 bus.setMaxListeners(100);

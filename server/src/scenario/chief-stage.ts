@@ -13,6 +13,7 @@ import { DESK, type DeskBook } from "../desk.js";
 import { deskDomain, reasonHash, signRefusal, signTrade, tradeDigest, type TradeMessage } from "../ledger/eip712.js";
 import type { WriteDesk } from "../ledger/desk-writer.js";
 import { traders, type TraderKey } from "../traders.js";
+import type { RecordedTrade } from "../store.js";
 import type { AfterClearance, BeatContext } from "./engine.js";
 
 export type ChiefOutcome =
@@ -37,6 +38,8 @@ export type ChiefStageDeps = {
   requestCoSign: (req: CoSignRequest) => Promise<boolean>;
   /** False while a judgment has revoked the Chief's auto-approve rule. */
   autoApproveActive: () => boolean;
+  /** Called once a trade is written, so surveillance can review it later. */
+  onRecorded?: (trade: RecordedTrade) => void;
   nonce?: () => bigint;
 };
 
@@ -112,7 +115,6 @@ export const chiefStage =
     const chiefSig: Hex = auto ? "0x" : await signTrade(deps.chief, deps.domain, trade);
     let humanSig: Hex = "0x";
     if (decision.notionalUsd > DESK.coSignUsd) {
-      emit({ type: "cosign.requested", beatId: beat.id, trader: trader.key, symbol: token.symbol, notionalUsd: decision.notionalUsd });
       const approved = await deps.requestCoSign({ beatId: beat.id, trader: trader.key, symbol: token.symbol, notionalUsd: decision.notionalUsd, reason });
       trail.append("human", approved ? "cosign.approved" : "cosign.declined", { notionalUsd: decision.notionalUsd });
       if (!approved) return done({ outcome: "cosign-declined", reason: "The human approver declined to co-sign." }, reason, concerns);
@@ -121,13 +123,34 @@ export const chiefStage =
 
     const written = await deps.writeDesk({
       kind: "trade",
-      trade: { ...trade, notionalE6: notional.toString(), nonce: trade.nonce.toString() },
+      trade: {
+        clearanceId: trade.clearanceId,
+        trader: trade.trader,
+        token: trade.token,
+        side: trade.side,
+        notionalE6: trade.notional.toString(),
+        nonce: trade.nonce.toString(),
+        trailHash: trade.trailHash,
+      },
       chiefSig,
       humanSig,
     });
     deps.book.record(trader.key, token.symbol, decision.side, decision.notionalUsd);
     const tradeId = tradeDigest(deps.domain, trade);
     trail.append("desk-writer", "ledger.trade", { tradeId, autoApproved: auto, txHash: written.txHash, mode: written.mode, log: written.log });
+    deps.onRecorded?.({
+      tradeId,
+      beatId: beat.id,
+      clearanceId: clearance.clearanceId,
+      trader: trader.key,
+      traderAddress: trade.trader,
+      symbol: token.symbol,
+      side: decision.side,
+      notionalUsd: decision.notionalUsd,
+      autoApproved: auto,
+      txHash: written.txHash,
+      at: new Date().toISOString(),
+    });
     emit({ type: "ledger.write", beatId: beat.id, ...written });
     return done({ outcome: auto ? "auto-approved" : "approved", tradeId, txHash: written.txHash }, reason, concerns);
   };

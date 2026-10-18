@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { Address } from "viem";
 import { localFacilitator } from "./testing/local-facilitator.js";
-import { BASE_SEPOLIA, USDC_BASE_SEPOLIA, clearancePaywall, paymentOf, payingFetch } from "./x402.js";
+import { BASE_SEPOLIA, USDC_BASE_SEPOLIA, deskPaywall, paymentOf, payingFetch } from "./x402.js";
 
 const DESK: Address = "0x4fAa2A586949D88C7d857a737Ace2C929dEb4f11";
 const decode = (h: string | null) => JSON.parse(Buffer.from(h ?? "", "base64").toString("utf8"));
@@ -11,7 +11,7 @@ const decode = (h: string | null) => JSON.parse(Buffer.from(h ?? "", "base64").t
 function gateway() {
   const app = new Hono();
   const seen: (Address | undefined)[] = [];
-  app.use(clearancePaywall({ payTo: DESK, facilitator: localFacilitator() }));
+  app.use(deskPaywall({ payTo: DESK, facilitator: localFacilitator() }));
   app.post("/clearance", (c) => {
     seen.push(paymentOf(c.req.header("payment-signature"))?.payer);
     return c.json({ cleared: true });

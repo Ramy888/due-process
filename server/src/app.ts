@@ -8,7 +8,7 @@ import type { FacilitatorClient } from "@x402/core/server";
 import { ROOT } from "./env.js";
 import { getEvidence } from "./evidence.js";
 import { clearanceBody, clearancePayload, type ClearanceResult, type RunClearance } from "./clearance.js";
-import { clearancePaywall, paymentOf } from "./x402.js";
+import { deskPaywall, paymentOf } from "./x402.js";
 import { emit, recent, subscribe, type DeskEvent } from "./bus.js";
 import { verifyTrail } from "./agents/trail.js";
 import type { DeskStore } from "./store.js";
@@ -60,7 +60,19 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   // Paid per call. Any non-2xx answer below means the facilitator never settles, so the trader is not charged.
-  app.use(clearancePaywall({ payTo: deps.payTo, facilitator: deps.facilitator }));
+  app.use(deskPaywall({ payTo: deps.payTo, facilitator: deps.facilitator, sellerOf: (id) => deps.store.signal(id)?.sellerAddress }));
+
+  // Paid per read, to the trader who wrote the signal. The sale is the evidence surveillance uses later.
+  app.get("/signals/:id", (c) => {
+    const signal = deps.store.signal(c.req.param("id"));
+    if (!signal) return c.json({ error: "not found" }, 404);
+    const payment = paymentOf(c.req.header("payment-signature"));
+    if (!payment) return c.json({ error: "payment missing" }, 402);
+    deps.store.recordSale({ nonce: payment.nonce, signalId: signal.id, buyerAddress: payment.payer, sellerAddress: signal.sellerAddress, at: new Date().toISOString() });
+    emit({ type: "signal.sold", signalId: signal.id, symbol: signal.symbol, seller: signal.seller, buyer: payment.payer });
+    return c.json({ id: signal.id, symbol: signal.symbol, text: signal.text, seller: signal.seller });
+  });
+
   app.post("/clearance", async (c) => {
     const payment = paymentOf(c.req.header("payment-signature"));
     if (!payment) return c.json({ error: "payment missing" }, 402);

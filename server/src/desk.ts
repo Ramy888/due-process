@@ -3,7 +3,7 @@ export const DESK = {
   budgetUsd: 10_000,
   allocationUsd: 2_000,
   autoApproveUsd: 100,
-  coSignUsd: 1_000,
+  coSignUsd: 150,
   /** ACE MaxPolicy ceiling per trade, enforced on-chain. */
   maxTradeUsd: 1_500,
 } as const;

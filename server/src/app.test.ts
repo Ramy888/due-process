@@ -9,6 +9,7 @@ import { ROOT } from "./env.js";
 import { localFacilitator } from "./testing/local-facilitator.js";
 import { payingFetch } from "./x402.js";
 import { DeskStore } from "./store.js";
+import { paidSignal } from "./scenario/paid-signal.js";
 
 const DESK: Address = "0x4fAa2A586949D88C7d857a737Ace2C929dEb4f11";
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -34,7 +35,7 @@ function desk(cre: (p: Payload, onLine: (l: string) => void) => unknown = (p) =>
       body: JSON.stringify(body),
       headers: { "content-type": "application/json" },
     });
-  return { app, store, facilitator, calls, pay, traderAddress: privateKeyToAccount(trader).address };
+  return { app, store, facilitator, calls, pay, fetchImpl, traderAddress: privateKeyToAccount(trader).address };
 }
 
 const cleared = (p: Payload) => ({
@@ -123,6 +124,31 @@ describe("POST /clearance", () => {
     const body = await (await d.app.request("/trails/case-1")).json();
     expect(body.verification).toEqual({ ok: true, head: trail.head() });
     expect((await d.app.request("/trails/nope")).status).toBe(404);
+  });
+
+  it("sells a signal to the paying trader, pays the seller's wallet, and records the sale", async () => {
+    const d = desk();
+    const seller = privateKeyToAccount(generatePrivateKey()).address;
+    d.store.putSignal({ id: "sig-1", seller: "Meme Hunter", sellerAddress: seller, symbol: "POPCAT", text: "tip", priceUsd: 0.05, createdAt: "2026-10-18T12:00:00Z" });
+
+    const unpaid = await d.app.request("/signals/sig-1");
+    expect(unpaid.status).toBe(402);
+    expect(JSON.parse(Buffer.from(unpaid.headers.get("payment-required")!, "base64").toString()).accepts[0]).toMatchObject({ payTo: seller, amount: "50000" });
+
+    const buyerKey = generatePrivateKey();
+    const bought = await paidSignal("http://desk", d.fetchImpl, () => buyerKey)("TRADER_KOL", "sig-1");
+    expect(bought).toEqual({ text: "tip", settlementTx: `0x${"ab".repeat(32)}` });
+    expect(d.store.sales()).toEqual([
+      expect.objectContaining({ signalId: "sig-1", buyerAddress: privateKeyToAccount(buyerKey).address, sellerAddress: seller }),
+    ]);
+    expect(d.facilitator.settled.map((a) => a.to)).toEqual([seller]);
+  });
+
+  it("charges nothing for a signal that does not exist", async () => {
+    const d = desk();
+    const res = await payingFetch(generatePrivateKey(), d.fetchImpl)("http://desk/signals/nope");
+    expect(res.status).toBe(404);
+    expect(d.facilitator.settled).toEqual([]);
   });
 
   it("keeps the evidence endpoint behind the desk token", async () => {

@@ -21,12 +21,23 @@ const token = z.object({
 });
 export type ScenarioToken = z.infer<typeof token>;
 
+const traderKey = z.enum(["TRADER_KOL", "TRADER_WHALE", "TRADER_NEWS", "TRADER_MEME", "TRADER_DIP"]);
+
 const beat = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   title: z.string(),
-  trader: z.enum(["TRADER_KOL", "TRADER_WHALE", "TRADER_NEWS", "TRADER_MEME", "TRADER_DIP"]),
+  trader: traderKey,
   candidates: z.array(z.string()).min(1),
   feed: z.array(feedItem),
+  /** The beat's trader sells a signal to other agents over x402 before trading. */
+  signalSale: z.object({ symbol: z.string(), text: z.string(), buyers: z.array(traderKey).min(1) }).optional(),
+  /** Scripted orders instead of a model decision: misconduct the desk must catch, labelled as staged in the UI. */
+  staged: z
+    .object({
+      label: z.string(),
+      orders: z.array(z.object({ symbol: z.string(), side: z.enum(["buy", "sell"]), notionalUsd: z.number().positive(), note: z.string() })).min(1),
+    })
+    .optional(),
 });
 export type Beat = z.infer<typeof beat>;
 
@@ -34,9 +45,12 @@ const scenarioSchema = z
   .object({ id: z.string(), title: z.string(), snapshotLabel: z.string(), tokens: z.record(token), beats: z.array(beat) })
   .passthrough()
   .superRefine((s, ctx) => {
-    for (const b of s.beats)
+    for (const b of s.beats) {
       for (const c of b.candidates)
         if (!s.tokens[c]) ctx.addIssue({ code: "custom", message: `beat ${b.id}: unknown token ${c}` });
+      for (const o of b.staged?.orders ?? [])
+        if (!b.candidates.includes(o.symbol)) ctx.addIssue({ code: "custom", message: `beat ${b.id}: staged order for non-candidate ${o.symbol}` });
+    }
   });
 export type Scenario = z.infer<typeof scenarioSchema>;
 

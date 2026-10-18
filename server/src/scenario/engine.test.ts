@@ -50,6 +50,7 @@ function deps(model: ModelFn, cleared: Partial<EngineDeps> = {}) {
     policies,
     runId: "run-1",
     resolveDeployment,
+    addressOf: (k) => personaWallet(`@${k}`),
     requestClearance: async (trader, body) => {
       requests.push({ trader, body });
       return {
@@ -89,7 +90,7 @@ describe("scenario engine", () => {
     expect(evidence.promotingKols.map((k) => k.wallet)).toEqual(
       ["@moonmaxi_sim", "@degen_dana_sim", "@chartwizard_sim", "@alpha_aisha_sim", "@solsensei_sim", "@whalewatch_sim"].map(personaWallet),
     );
-    expect(out).toMatchObject({ beatId: "frog-convergence", trader: "TRADER_KOL", clearance: { verdict: "BLOCKED" }, after: "chief-stage" });
+    expect(out).toMatchObject({ beatId: "frog-convergence", trader: "TRADER_KOL", steps: [{ clearance: { verdict: "BLOCKED" }, after: "chief-stage" }] });
     expect(seen).toEqual(["BLOCKED"]);
 
     const trail = d.store.trailEntries("run-1:frog-convergence");
@@ -111,13 +112,33 @@ describe("scenario engine", () => {
     const { d, requests } = deps(fakeModel({ action: "pass", symbol: "", side: "buy", notionalUsd: 0, reasoning: "Too thin.", evidence: [] }).fn);
     const out = await runBeat(d, scenario, "news-wif");
     expect(requests).toEqual([]);
-    expect(out.clearance).toBeUndefined();
+    expect(out.steps).toEqual([{ decision: expect.objectContaining({ action: "pass" }) }]);
   });
 
   it("refuses a proposal for a token that is not among the beat's candidates", async () => {
     const { d, requests } = deps(fakeModel({ ...buyFrog, symbol: "DOGE" }).fn);
     await expect(runBeat(d, scenario, "frog-convergence")).rejects.toThrow(/not a candidate/);
     expect(requests).toEqual([]);
+  });
+
+  it("sells a signal over x402 to each buyer, then plays the staged orders without asking the model", async () => {
+    const model = fakeModel(buyFrog);
+    const bought: [TraderKey, string][] = [];
+    const { d, requests } = deps(model.fn, {
+      buySignal: async (buyer, id) => (bought.push([buyer, id]), { text: "tip", settlementTx: `0x${"ee".repeat(32)}` }),
+    });
+    const scenario = loadScenario("frog-day");
+    const out = await runBeat(d, scenario, "meme-signal");
+
+    expect(bought).toEqual([["TRADER_KOL", out.signalId], ["TRADER_DIP", out.signalId]]);
+    expect(d.store.signal(out.signalId!)).toMatchObject({ seller: "Meme Hunter", symbol: "POPCAT", sellerAddress: personaWallet("@TRADER_MEME") });
+    expect(model.inputs).toEqual([]);
+    const orders = scenario.beats.find((b) => b.id === "meme-signal")!.staged!.orders;
+    expect(requests.map((r) => r.body.notionalE6)).toEqual(orders.map((o) => String(o.notionalUsd * 1e6)));
+    expect(out.steps).toHaveLength(orders.length);
+    const kinds = d.store.trailEntries("run-1:meme-signal").map((e) => e.kind);
+    expect(kinds.slice(0, 4)).toEqual(["beat.started", "signal.offered", "signal.bought", "signal.bought"]);
+    expect(kinds.slice(4)).toEqual(orders.flatMap(() => ["trader.order", "clearance.verdict"]));
   });
 
   it("licenses all five traders from data/traders.json before any beat", async () => {

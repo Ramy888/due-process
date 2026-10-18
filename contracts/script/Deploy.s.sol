@@ -31,7 +31,7 @@ contract Deploy is Script {
     uint256 constant DESK_BUDGET = 10_000e6;
     uint256 constant ALLOCATION = 2_000e6;
     uint256 constant AUTO_APPROVE = 100e6;
-    uint256 constant CO_SIGN = 1_000e6;
+    uint256 constant CO_SIGN = 150e6;
     uint256 constant BOND = 1e6; // 1 test USDC per licensee
     uint256 constant GAS_TOPUP = 0.0005 ether;
 

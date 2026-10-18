@@ -8,7 +8,7 @@ import type { MandatePolicy } from "../agents/mandate.js";
 import { ReplayCache } from "../agents/replay.js";
 import { AgentRuntime, type ModelFn } from "../agents/runtime.js";
 import { ledgerTokenFor } from "../clearance.js";
-import { DeskBook } from "../desk.js";
+import { DESK, DeskBook } from "../desk.js";
 import type { DeskWriteRequest } from "../ledger/desk-writer.js";
 import { deskDomain, deskTypes, reasonHash } from "../ledger/eip712.js";
 import { DeskStore } from "../store.js";
@@ -67,6 +67,10 @@ function setup(review: object | null, opts: Partial<ChiefStageDeps> = {}) {
   return { deps, ctx, writes, modelCalls, run: (c: BeatContext) => chiefStage(deps)(c) as Promise<ChiefOutcome> };
 }
 
+// Between the auto-approve limit and the co-sign threshold: reviewed by the Chief, no human needed.
+const UNDER_COSIGN = (DESK.autoApproveUsd + DESK.coSignUsd) / 2;
+const OVER_COSIGN = DESK.coSignUsd + 50;
+
 const approve = { approve: true, reason: "Fits the mandate and the desk is not concentrated in WIF.", concerns: [] };
 const refuse = { approve: false, reason: "Two other traders already hold WIF; a third would concentrate the desk.", concerns: ["WIF concentration"] };
 
@@ -111,14 +115,17 @@ describe("Desk Chief stage", () => {
 
   it("signs an approved trade over exactly what the ledger will check, committing to the trail so far", async () => {
     const s = setup(approve);
-    const c = s.ctx(200);
+    const c = s.ctx(UNDER_COSIGN);
     const out = await s.run(c);
     expect(out.outcome).toBe("approved");
     const [w] = s.writes as Extract<DeskWriteRequest, { kind: "trade" }>[];
-    expect(w.trade).toMatchObject({ trader: newsAddress, token: ledgerTokenFor("solana", WIF), notionalE6: "200000000", nonce: "7" });
+    expect(w.trade).toMatchObject({ trader: newsAddress, token: ledgerTokenFor("solana", WIF), notionalE6: String(UNDER_COSIGN * 1e6), nonce: "7" });
     expect(w.trade.trailHash).toBe(c.trail.entries().find((e) => e.kind === "chief.review")!.hash);
     expect(await recoverTrade(w, w.chiefSig)).toBe(chief.address);
     expect(w.humanSig).toBe("0x");
+    // what the Desk Writer workflow receives: exactly its fields, and plain JSON
+    expect(Object.keys(w.trade).sort()).toEqual(["clearanceId", "nonce", "notionalE6", "side", "token", "trader", "trailHash"]);
+    expect(JSON.parse(JSON.stringify(w))).toEqual(w);
   });
 
   it("records a refusal signed by the Chief over the exact reason", async () => {
@@ -149,13 +156,13 @@ describe("Desk Chief stage", () => {
 
   it("holds a large trade for the human, and writes it only with the human's co-signature", async () => {
     const declined = setup(approve);
-    expect(await declined.run(declined.ctx(1200))).toMatchObject({ outcome: "cosign-declined" });
+    expect(await declined.run(declined.ctx(OVER_COSIGN))).toMatchObject({ outcome: "cosign-declined" });
     expect(declined.writes).toEqual([]);
 
     const asked: unknown[] = [];
     const s = setup(approve, { requestCoSign: async (r) => (asked.push(r), true) });
-    expect((await s.run(s.ctx(1200))).outcome).toBe("approved");
-    expect(asked).toEqual([expect.objectContaining({ trader: "TRADER_NEWS", symbol: "WIF", notionalUsd: 1200 })]);
+    expect((await s.run(s.ctx(OVER_COSIGN))).outcome).toBe("approved");
+    expect(asked).toEqual([expect.objectContaining({ trader: "TRADER_NEWS", symbol: "WIF", notionalUsd: OVER_COSIGN })]);
     const [w] = s.writes as Extract<DeskWriteRequest, { kind: "trade" }>[];
     expect(await recoverTrade(w, w.humanSig)).toBe(human.address as Address);
   });
