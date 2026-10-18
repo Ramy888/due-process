@@ -54,6 +54,8 @@ subscribe((e) => {
       return console.log(`   ${e.trader}${e.staged ? " [STAGED]" : ""}: ${e.decision.action} ${e.decision.symbol} $${e.decision.notionalUsd} | ${e.decision.reasoning}`);
     case "signal.sold":
       return console.log(`   signal ${e.signalId} sold to ${e.buyer}`);
+    case "clearance.failed":
+      return console.log(`   clearance could not run: ${e.error.split("\n")[0]}`);
     case "clearance.result":
       return console.log(`   clearance ${e.result.verdict} ${JSON.stringify(e.result.hits.map((h) => h.code))} (${e.log})`);
     case "chief.decision":
@@ -84,9 +86,15 @@ subscribe((e) => {
   }
 });
 
+let exitCode = 0;
 try {
   const { runId, book } = await runScenario({ store, coSign, sanctions, deskUrl: `http://127.0.0.1:${PORT}`, deployment: values.deployment }, values.scenario!, values.beats?.split(","));
-  console.log(`\nrun ${runId}\nholdings ${JSON.stringify(book.all())}\ntrades recorded ${store.trades().length}, signal sales ${store.sales().length}`);
+  console.log(`\nrun ${runId}\nholdings ${JSON.stringify(book.all())}\ntrades recorded ${store.trades(runId).length}, signal sales ${store.sales(runId).length}`);
+} catch (e) {
+  console.error(e);
+  exitCode = 1;
 } finally {
+  // keep-alive sockets from the traders' own HTTP calls would otherwise hold the process open
   server.close();
+  process.exit(exitCode);
 }

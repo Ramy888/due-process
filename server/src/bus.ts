@@ -16,21 +16,21 @@ export type DeskEvent =
   | { type: "beat.started"; beatId: string; title: string; trader: TraderKey }
   | { type: "trader.decision"; beatId: string; trader: TraderKey; decision: TraderDecision; staged: boolean }
   | { type: "beat.finished"; beatId: string; verdict: string | null; trailId: string; trailHead: Hex }
-  | { type: "chief.decision"; beatId: string; trader: TraderKey; outcome: ChiefOutcome["outcome"]; reason: string; concerns: string[] }
+  | { type: "chief.decision"; beatId: string; trader: TraderKey; outcome: Exclude<ChiefOutcome["outcome"], "rejected-by-ledger">; reason: string; concerns: string[] }
   | { type: "approval.requested"; kind: "cosign" | "sanctions"; id: string; request: object }
   | { type: "approval.decided"; kind: "cosign" | "sanctions"; id: string; approved: boolean }
   | { type: "scenario.started"; runId: string; scenarioId: string; beats: string[] }
   | { type: "scenario.finished"; runId: string; error?: string }
   | { type: "surveillance.alerts"; runId: string; alerts: { code: string; trader: TraderKey; symbol: string; detail: string; unreviewed: boolean }[] }
   | { type: "case.decided"; runId: string; summary: string; approved: boolean; caseHash: Hex }
-  | { type: "ledger.write"; beatId: string; kind: string; mode: string; txHash: Hex | null; log: string; recorded: boolean; reason: string | null }
+  | { type: "ledger.write"; beatId: string; trader?: TraderKey; kind: string; mode: string; txHash: Hex | null; log: string; recorded: boolean; reason: string | null }
   | { type: "signal.sold"; signalId: string; symbol: string; seller: string; buyer: Address };
 
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 
 // The last events, so a UI that connects mid-scenario sees what already happened.
-const RECENT_LIMIT = 500;
+const RECENT_LIMIT = 5000;
 const recentEvents: DeskEvent[] = [];
 
 export function emit(e: DeskEvent): void {

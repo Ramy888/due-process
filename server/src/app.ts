@@ -12,6 +12,7 @@ import { deskPaywall, paymentOf } from "./x402.js";
 import { emit, recent, subscribe, type DeskEvent } from "./bus.js";
 import { verifyTrail } from "./agents/trail.js";
 import type { DeskStore } from "./store.js";
+import type { DeskService } from "./desk-service.js";
 
 export type AppDeps = {
   deskToken: string;
@@ -19,6 +20,8 @@ export type AppDeps = {
   facilitator: FacilitatorClient;
   runClearance: RunClearance;
   store: DeskStore;
+  /** The UI's desk: scenario runs, live state and the human approvals. */
+  service?: DeskService;
 };
 
 const VERDICTS = new Set(["CLEARED", "FLAGGED", "BLOCKED"]);
@@ -51,6 +54,33 @@ export function createApp(deps: AppDeps): Hono {
       unsubscribe();
     }),
   );
+
+  // Human-only actions. The server listens on 127.0.0.1 only; the custom header also stops other websites in the
+  // same browser from triggering them (a cross-origin request with it needs a CORS preflight this server never grants).
+  const fromDeskUi = (c: { req: { header: (n: string) => string | undefined } }) => c.req.header("x-desk-ui") === "1";
+
+  if (deps.service) {
+    const service = deps.service;
+    app.get("/state", (c) => c.json(service.state()));
+    app.get("/case", (c) => c.json(service.case()));
+    app.post("/scenario/run", async (c) => {
+      if (!fromDeskUi(c)) return c.json({ error: "desk UI only" }, 403);
+      const body = (await c.req.json().catch(() => ({}))) as { scenarioId?: string; beats?: string[] };
+      try {
+        return c.json(service.start(body.scenarioId ?? "frog-day", body.beats), 202);
+      } catch (e) {
+        return c.json({ error: e instanceof Error ? e.message : String(e) }, 409);
+      }
+    });
+    app.post("/approvals/:kind/:id", async (c) => {
+      if (!fromDeskUi(c)) return c.json({ error: "desk UI only" }, 403);
+      const body = (await c.req.json().catch(() => ({}))) as { approve?: unknown };
+      if (typeof body.approve !== "boolean") return c.json({ error: "approve must be true or false" }, 400);
+      const queue = c.req.param("kind") === "cosign" ? service.coSign : c.req.param("kind") === "sanctions" ? service.sanctions : undefined;
+      if (!queue || !queue.decide(c.req.param("id"), body.approve)) return c.json({ error: "no such pending approval" }, 404);
+      return c.json({ ok: true });
+    });
+  }
 
   // A trail and whether its hash chain still holds; the head is the value committed on-chain.
   app.get("/trails/:id", (c) => {

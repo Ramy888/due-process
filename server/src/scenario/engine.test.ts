@@ -105,7 +105,22 @@ describe("scenario engine", () => {
     const input = canonicalJson(model.inputs[0]);
     expect(input).not.toMatch(/0x[0-9a-fA-F]{40}/);
     expect(input).not.toContain("deployment:");
-    expect(input).toContain("$FROG is the next 100x");
+    expect(input).toContain("holder count up every day this week");
+    expect(input).toContain("trustedVoices");
+  });
+
+  it("records a clearance that could not run and carries on, without asking the Chief", async () => {
+    const after: unknown[] = [];
+    const { d } = deps(fakeModel(buyFrog).fn, {
+      requestClearance: async () => {
+        throw new Error("clearance failed (HTTP 502): cre clearance failed (exit 1)");
+      },
+      afterClearance: async (ctx) => after.push(ctx),
+    });
+    const out = await runBeat(d, scenario, "frog-convergence");
+    expect(out.steps).toEqual([expect.objectContaining({ failed: expect.stringContaining("HTTP 502") })]);
+    expect(after).toEqual([]);
+    expect(d.store.trailEntries("run-1:frog-convergence").at(-1)).toMatchObject({ kind: "clearance.failed" });
   });
 
   it("does not pay for clearance when the trader passes", async () => {

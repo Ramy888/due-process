@@ -51,6 +51,7 @@ export async function decide(runtime: AgentRuntime, input: TraderInput) {
         watches: input.trader.watches,
         mandate: input.trader.mandate,
         limits: describeLimits(input.limits, input.allocationUsd),
+        ...(input.trader.trusts ? { trustedVoices: input.trader.trusts } : {}),
       },
       budget: { allocationUsd: input.allocationUsd, spentUsd: input.spentUsd },
       holdingsUsd: input.holdingsUsd,

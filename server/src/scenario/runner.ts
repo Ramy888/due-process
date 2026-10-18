@@ -36,22 +36,25 @@ export type RunnerDeps = {
   requestClearance?: RequestClearance;
   buySignal?: BuySignal;
   writeDesk?: WriteDesk;
+  /** Live positions; the desk service passes its own so the UI sees them during the run. */
+  book?: DeskBook;
 };
 
 const keyOf = (name: string) => required(`${name}_PRIVATE_KEY`) as Hex;
 export const traderAddress = (k: TraderKey): Address => privateKeyToAccount(keyOf(k)).address;
 
-export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?: string[]) {
+export const newRunId = (scenarioId: string) => `${scenarioId}-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+
+export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?: string[], runId = newRunId(scenarioId)) {
   const scenario = loadScenario(scenarioId);
   const beats = beatIds ?? scenario.beats.map((b) => b.id);
-  const runId = `${scenario.id}-${new Date().toISOString().replace(/[:.]/g, "-")}`;
   const deployment = deps.deployment ?? process.env.DEPLOYMENT ?? "base-sepolia";
   const dep = JSON.parse(readFileSync(`${ROOT}deployments/${deployment}.json`, "utf8")) as { chainId: number; deskLedger: Address };
 
   emit({ type: "scenario.started", runId, scenarioId: scenario.id, beats });
   try {
     const runtime = deps.runtime ?? runtimeFromEnv();
-    const book = new DeskBook();
+    const book = deps.book ?? new DeskBook();
     const chief = privateKeyToAccount(keyOf("CHIEF"));
     const human = privateKeyToAccount(keyOf("HUMAN_APPROVER"));
     const domain = deskDomain(dep.chainId, dep.deskLedger);

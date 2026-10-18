@@ -51,14 +51,14 @@ export const chiefStage =
   (deps: ChiefStageDeps): AfterClearance =>
   async (ctx: BeatContext): Promise<ChiefOutcome> => {
     const { beat, trader, decision, token, clearance, trail } = ctx;
-    const done = (o: ChiefOutcome, reason = "", concerns: string[] = []) => {
-      emit({ type: "chief.decision", beatId: beat.id, trader: trader.key, outcome: o.outcome, reason, concerns });
-      return o;
-    };
+    const announce = (outcome: "approved" | "auto-approved" | "refused" | "blocked" | "cosign-declined", reason: string, concerns: string[] = []) =>
+      emit({ type: "chief.decision", beatId: beat.id, trader: trader.key, outcome, reason, concerns });
+    const done = (o: ChiefOutcome) => o;
 
     if (clearance.verdict === "BLOCKED") {
       trail.append("desk", "chief.skipped", { why: "clearance BLOCKED; the trade cannot be recorded" });
-      return done({ outcome: "blocked" }, "Clearance blocked the trade.");
+      announce("blocked", "Clearance blocked the trade.");
+      return done({ outcome: "blocked" });
     }
 
     const notional = toE6(decision.notionalUsd);
@@ -77,6 +77,7 @@ export const chiefStage =
     let concerns: string[] = [];
     if (auto) {
       trail.append("desk", "chief.auto-approved", { rule: `cleared trades up to $${DESK.autoApproveUsd} need no review`, notionalUsd: decision.notionalUsd });
+      announce("auto-approved", reason);
     } else {
       const policy = deps.policies.get(trader.key);
       if (!policy) throw new Error(`${trader.name} has no compiled licence`);
@@ -102,6 +103,7 @@ export const chiefStage =
       reason = output.reason;
       concerns = output.concerns;
       trail.append("Desk Chief", "chief.review", { ...output, brokenLimits, replayKey: key, source });
+      announce(output.approve ? "approved" : "refused", reason, concerns);
 
       if (!output.approve) {
         const refusal = { clearanceId: clearance.clearanceId, trader: trade.trader, trailHash: trail.head() };
@@ -109,9 +111,9 @@ export const chiefStage =
         const written = await deps.writeDesk({ kind: "refusal", refusal, reason, chiefSig });
         const verdict = ledgerVerdict(written, "TradeRefused");
         trail.append("desk-writer", verdict.ok ? "ledger.refusal" : "ledger.rejected", { txHash: written.txHash, mode: written.mode, log: written.log, ...(verdict.ok ? {} : { reason: verdict.reason }) });
-        emit({ type: "ledger.write", beatId: beat.id, ...written, recorded: verdict.ok, reason: verdict.ok ? null : verdict.reason });
-        if (!verdict.ok) return done({ outcome: "rejected-by-ledger", reason: verdict.reason, txHash: written.txHash }, verdict.reason, concerns);
-        return done({ outcome: "refused", reason, txHash: written.txHash }, reason, concerns);
+        emit({ type: "ledger.write", beatId: beat.id, trader: trader.key, ...written, recorded: verdict.ok, reason: verdict.ok ? null : verdict.reason });
+        if (!verdict.ok) return done({ outcome: "rejected-by-ledger", reason: verdict.reason, txHash: written.txHash });
+        return done({ outcome: "refused", reason, txHash: written.txHash });
       }
     }
 
@@ -121,7 +123,10 @@ export const chiefStage =
     if (decision.notionalUsd > DESK.coSignUsd) {
       const approved = await deps.requestCoSign({ beatId: beat.id, trader: trader.key, symbol: token.symbol, notionalUsd: decision.notionalUsd, reason });
       trail.append("human", approved ? "cosign.approved" : "cosign.declined", { notionalUsd: decision.notionalUsd });
-      if (!approved) return done({ outcome: "cosign-declined", reason: "The human approver declined to co-sign." }, reason, concerns);
+      if (!approved) {
+        announce("cosign-declined", "The human approver declined to co-sign.");
+        return done({ outcome: "cosign-declined", reason: "The human approver declined to co-sign." });
+      }
       humanSig = await signTrade(deps.human, deps.domain, trade);
     }
 
@@ -143,8 +148,8 @@ export const chiefStage =
     const verdict = ledgerVerdict(written, "TradeRecorded");
     if (!verdict.ok) {
       trail.append("desk-writer", "ledger.rejected", { tradeId, reason: verdict.reason, txHash: written.txHash, mode: written.mode, log: written.log });
-      emit({ type: "ledger.write", beatId: beat.id, ...written, recorded: false, reason: verdict.reason });
-      return done({ outcome: "rejected-by-ledger", reason: verdict.reason, txHash: written.txHash }, verdict.reason, concerns);
+      emit({ type: "ledger.write", beatId: beat.id, trader: trader.key, ...written, recorded: false, reason: verdict.reason });
+      return done({ outcome: "rejected-by-ledger", reason: verdict.reason, txHash: written.txHash });
     }
     deps.book.record(trader.key, token.symbol, decision.side, decision.notionalUsd);
     trail.append("desk-writer", "ledger.trade", { tradeId, autoApproved: auto, txHash: written.txHash, mode: written.mode, log: written.log });
@@ -162,6 +167,6 @@ export const chiefStage =
       txHash: written.txHash,
       at: new Date().toISOString(),
     });
-    emit({ type: "ledger.write", beatId: beat.id, ...written, recorded: true, reason: null });
-    return done({ outcome: auto ? "auto-approved" : "approved", tradeId, txHash: written.txHash }, reason, concerns);
+    emit({ type: "ledger.write", beatId: beat.id, trader: trader.key, ...written, recorded: true, reason: null });
+    return done({ outcome: auto ? "auto-approved" : "approved", tradeId, txHash: written.txHash });
   };

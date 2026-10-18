@@ -52,7 +52,7 @@ export type EngineDeps = {
   afterClearance?: AfterClearance;
 };
 
-export type BeatStep = { decision: TraderDecision; clearance?: ClearanceOutcome; after?: unknown };
+export type BeatStep = { decision: TraderDecision; clearance?: ClearanceOutcome; after?: unknown; failed?: string };
 
 export type BeatOutcome = {
   beatId: string;
@@ -199,12 +199,20 @@ async function clearAndAct(
     ),
   );
 
-  const clearance = await deps.requestClearance(trader.key, {
-    chain: token.chain,
-    token: token.address,
-    notionalE6: String(Math.round(decision.notionalUsd * 1e6)),
-    evidenceId,
-  });
+  let clearance: ClearanceOutcome;
+  try {
+    clearance = await deps.requestClearance(trader.key, {
+      chain: token.chain,
+      token: token.address,
+      notionalE6: String(Math.round(decision.notionalUsd * 1e6)),
+      evidenceId,
+    });
+  } catch (e) {
+    // The checkpoint could not run (the gateway does not charge for that); the proposal goes no further.
+    const failed = e instanceof Error ? e.message : String(e);
+    trail.append("clearance-workflow", "clearance.failed", { symbol: decision.symbol, error: failed });
+    return { decision, failed };
+  }
   trail.append("clearance-workflow", "clearance.verdict", {
     clearanceId: clearance.clearanceId,
     verdict: clearance.verdict,

@@ -9,7 +9,7 @@
       "address": "deployment:frogToken",
       "priceUsd": 0.0042,
       "liquidityUsd": 820000,
-      "change24hPct": 64,
+      "change24hPct": 18,
       "staged": true,
       "closePriceUsd": 0.0011
     },
@@ -52,37 +52,37 @@
           "kind": "post",
           "handle": "@moonmaxi_sim",
           "minute": -52,
-          "text": "$FROG is the next 100x. Base is waking up. Not selling a single one."
+          "text": "$FROG on Base: holder count up every day this week and a real community forming. Adding a small position."
         },
         {
           "kind": "post",
           "handle": "@degen_dana_sim",
           "minute": -47,
-          "text": "Loaded my bags with $FROG. Chart looks like a rocket on the launchpad."
+          "text": "Quietly accumulating $FROG. Volume is picking up across the board."
         },
         {
           "kind": "post",
           "handle": "@chartwizard_sim",
           "minute": -39,
-          "text": "$FROG breaking out of a 3-day range on rising volume. Targets above."
+          "text": "$FROG broke out of a 3-day range on rising volume. Clean structure; next resistance is about 20% higher."
         },
         {
           "kind": "post",
           "handle": "@alpha_aisha_sim",
           "minute": -31,
-          "text": "Hearing big partnerships for $FROG this week. You did not hear it from me."
+          "text": "Hearing the $FROG team is close to announcing a partnership. Watching closely."
         },
         {
           "kind": "post",
           "handle": "@solsensei_sim",
           "minute": -22,
-          "text": "Lots of people asking about $FROG. Do your own research, but it is trending."
+          "text": "Several readers asked about $FROG. Fundamentals look reasonable for a small cap; size your position carefully."
         },
         {
           "kind": "post",
           "handle": "@whalewatch_sim",
           "minute": -9,
-          "text": "Fresh wallets accumulating $FROG over the last hour."
+          "text": "Fresh wallets have been accumulating $FROG over the last hour."
         }
       ]
     },

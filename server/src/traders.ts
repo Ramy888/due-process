@@ -4,7 +4,14 @@ import { keccak256, stringToBytes, type Hex } from "viem";
 import { ROOT } from "./env.js";
 
 export type TraderKey = "TRADER_KOL" | "TRADER_WHALE" | "TRADER_NEWS" | "TRADER_MEME" | "TRADER_DIP";
-export type TraderProfile = { key: TraderKey; name: string; watches: string; mandate: string };
+export type TraderProfile = {
+  key: TraderKey;
+  name: string;
+  watches: string;
+  mandate: string;
+  /** Influencer handles this trader has learned to trust (the KOL Narrative's watchlist). */
+  trusts?: string[];
+};
 
 const roster = JSON.parse(readFileSync(`${ROOT}data/traders.json`, "utf8")) as {
   traders: TraderProfile[];

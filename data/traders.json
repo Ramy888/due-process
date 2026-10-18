@@ -5,7 +5,13 @@
       "key": "TRADER_KOL",
       "name": "KOL Narrative",
       "watches": "influencer posts: which coins several voices push at the same time",
-      "mandate": "Trade only narratives that at least 3 trusted voices share. Solana and Base Sepolia allowed. No single trade over $300 and never more than 10% of my allocation in one coin. Skip pools under $500k. At most 4 trades an hour."
+      "mandate": "Trade only narratives that at least 3 trusted voices share. Solana and Base Sepolia allowed. No single trade over $300 and never more than 10% of my allocation in one coin. Skip pools under $500k. At most 4 trades an hour.",
+      "trusts": [
+        "@moonmaxi_sim",
+        "@chartwizard_sim",
+        "@solsensei_sim",
+        "@whalewatch_sim"
+      ]
     },
     {
       "key": "TRADER_WHALE",
