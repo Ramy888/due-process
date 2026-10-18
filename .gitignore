@@ -1,0 +1,31 @@
+# secrets
+.env
+.env.*
+!.env.example
+secrets.yaml
+**/secrets.yaml
+!**/secrets.example.yaml
+
+# AI instructions and agent notes stay local
+CLAUDE.md
+AGENTS.md
+.claude/
+.agents/
+agent/
+skills-lock.json
+tasks/
+
+# build output
+node_modules/
+dist/
+out/
+cache/
+broadcast/
+*.wasm
+.DS_Store
+data/runtime/
+contracts/out/
+contracts/cache/
+workflows/**/dist/
+proof/*.log.tmp
+**/.cre_build_tmp.js

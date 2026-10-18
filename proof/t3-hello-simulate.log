@@ -1,0 +1,26 @@
+Initializing...
+Loading settings...
+! Using default private key for chain write simulation. To use your own key, set CRE_ETH_PRIVATE_KEY in your .env file or system environment.
+Checking RPC connectivity...
+Compiling workflow...
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  Binary hash: c7e10461a6d71fdcbdf49f686bdbded18d96687c74710b379c047483686f9d08
+  Config hash: 3bdaebcc2f639d77cb248242c1d01c8651f540cdbf423d26fe3128516fd225b6
+2026-10-18T18:02:36Z [SIMULATION] Simulator Initialized
+
+2026-10-18T18:02:36Z [SIMULATION] Running trigger trigger=cron-trigger@1.0.0
+2026-10-18T18:02:37Z [USER LOG] Hello world! Workflow triggered.
+
+✓ Workflow Simulation Result:
+"Hello world!"
+
+2026-10-18T18:02:37Z [SIMULATION] Execution finished signal received
+2026-10-18T18:02:37Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯
