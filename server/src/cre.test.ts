@@ -69,6 +69,19 @@ describe("runCre", () => {
     expect(readFileSync(join(dirOf(config), "args"), "utf8").trim()).toMatch(/ --broadcast$/);
   });
 
+  it("runs once more when the CLI's account check flakes (nothing has run yet), but never on other failures", async () => {
+    // the error Chainlink's CLI printed mid-take on 2026-10-19, a minute after successful runs
+    const authFlake = `echo "authentication required: credential validation failed: authentication failed: unable to retrieve organization info. Your account may not be fully set up yet — please try again in a few minutes"; exit 1`;
+    const flaky = fakeCre(`n=$(cat calls 2>/dev/null || echo 0); echo $((n + 1)) > calls; if [ "$n" = 0 ]; then ${authFlake}; fi; cat "${BONK_LOG}"`);
+    const run = await runCre(opts, { ...flaky, authRetryMs: 0 });
+    expect((run.result as { verdict: string }).verdict).toBe("FLAGGED");
+    expect(readFileSync(join(flaky.workflowsDir, "calls"), "utf8").trim()).toBe("2");
+
+    const broken = fakeCre(`n=$(cat calls 2>/dev/null || echo 0); echo $((n + 1)) > calls; echo "Error: RPC unreachable"; exit 3`);
+    await expect(runCre(opts, { ...broken, authRetryMs: 0 })).rejects.toThrow("RPC unreachable");
+    expect(readFileSync(join(broken.workflowsDir, "calls"), "utf8").trim()).toBe("1");
+  });
+
   it("fails with the log tail when the simulator exits non-zero, and still removes the payload", async () => {
     const config = fakeCre(`echo "Error: RPC unreachable"; exit 3`);
     const err = await runCre(opts, config).catch((e) => e);

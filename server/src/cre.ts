@@ -21,7 +21,14 @@ export type CreRunOptions = {
 
 export type CreRun = { runId: string; result: unknown; logPath: string };
 
-export type CreRunnerConfig = { bin: string; workflowsDir: string; logsDir: string; timeoutMs: number };
+export type CreRunnerConfig = {
+  bin: string;
+  workflowsDir: string;
+  logsDir: string;
+  timeoutMs: number;
+  /** Wait before the one retry after a failed account check (default 5 s). */
+  authRetryMs?: number;
+};
 
 export const defaultCreConfig = (): CreRunnerConfig => ({
   bin: process.env.CRE_BIN ?? "cre",
@@ -72,8 +79,20 @@ const oneAtATime = <T>(task: () => Promise<T>): Promise<T> => {
   return run;
 };
 
+/** The CLI checks the account before it runs anything; that check sometimes fails for a minute on Chainlink's side. */
+const accountCheckFailed = (e: unknown) => e instanceof CreRunError && /unable to retrieve organization info/.test(e.message);
+
 export function runCre(opts: CreRunOptions, config: CreRunnerConfig = defaultCreConfig()): Promise<CreRun> {
-  return oneAtATime(() => runOnce(opts, config));
+  return oneAtATime(async () => {
+    try {
+      return await runOnce(opts, config);
+    } catch (e) {
+      if (!accountCheckFailed(e)) throw e;
+      opts.onLine?.("↻ the CRE account check failed before the workflow ran; trying once more");
+      await new Promise((r) => setTimeout(r, config.authRetryMs ?? 5000));
+      return runOnce(opts, config);
+    }
+  });
 }
 
 async function runOnce(opts: CreRunOptions, config: CreRunnerConfig): Promise<CreRun> {
