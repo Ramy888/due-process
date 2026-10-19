@@ -6,7 +6,8 @@ import { join } from "node:path";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function launch({ width = 1440, height = 900, scale = 1, port = 9344 } = {}) {
+// frameDir: write each frame to disk as it is captured (a long take holds only names in memory, and a crash keeps them)
+export async function launch({ width = 1440, height = 900, scale = 1, port = 9344, frameDir = null } = {}) {
   const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
     "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "madarrec-"))}`,
     `--window-size=${width},${height}`, "--hide-scrollbars", "--no-first-run", "--force-color-profile=srgb", "about:blank",
@@ -44,6 +45,16 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
   let last = { x: width / 2, y: height / 2 };
   let inflight = false;
   let busy = false; // no gap-fill screenshots while a click is in flight
+  // Chrome scales a mouse event that lands during (or just after) a screenshot by 1/deviceScaleFactor, so the
+  // pointer would hover or click the wrong element: every mouse event waits for the capture to finish
+  const mouse = async (params) => {
+    const was = busy;
+    busy = true;
+    while (inflight) await sleep(5);
+    await sleep(40);
+    await send("Input.dispatchMouseEvent", params);
+    busy = was;
+  };
   const ensureCursor = async () => { await evaluate(CURSOR); await evaluate(`(()=>{const c=document.getElementById('rec-cursor');c.style.transition='none';c.style.left='${last.x}px';c.style.top='${last.y}px';c.offsetWidth;c.style.transition='left .6s cubic-bezier(.4,0,.2,1), top .6s cubic-bezier(.4,0,.2,1), transform .12s';})()`); };
 
   const find = async (text, { exact = false, nth = -1 } = {}) => evaluate(`(() => {
@@ -65,7 +76,7 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
     await ensureCursor();
     await evaluate(`(()=>{const c=document.getElementById('rec-cursor');c.style.left='${p.x - 4}px';c.style.top='${p.y - 2}px';})()`);
     last = { x: p.x - 4, y: p.y - 2 };
-    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: p.x, y: p.y });
+    await mouse({ type: "mouseMoved", x: p.x, y: p.y });
     await sleep(700);
   };
   // app buttons: show the pointer and ripple, then activate the element itself (CDP presses are
@@ -79,11 +90,10 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
   const clickAt = async (p) => {
     await moveTo(p);
     busy = true;
-    while (inflight) await sleep(5); // never press while a screenshot is being taken
     await evaluate(`(()=>{const r=document.getElementById('rec-ripple');r.style.transition='none';r.style.left='${p.x}px';r.style.top='${p.y}px';r.style.opacity=1;r.style.transform='scale(.4)';r.offsetWidth;r.style.transition='opacity .5s, transform .5s';r.style.opacity=0;r.style.transform='scale(1.6)';const c=document.getElementById('rec-cursor');c.style.transform='scale(.85)';setTimeout(()=>c.style.transform='',150);})()`);
-    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: p.x, y: p.y, button: "left", clickCount: 1 });
+    await mouse({ type: "mousePressed", x: p.x, y: p.y, button: "left", clickCount: 1 });
     await sleep(120);
-    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: p.x, y: p.y, button: "left", clickCount: 1 });
+    await mouse({ type: "mouseReleased", x: p.x, y: p.y, button: "left", clickCount: 1 });
     await sleep(150); busy = false;
   };
   // real mouse click first; if the expected result does not show, activate the element directly
@@ -104,24 +114,36 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
   const wheel = async (dy, at = { x: width * 0.6, y: height * 0.55 }) => {
     const steps = Math.max(1, Math.round(Math.abs(dy) / 60));
     for (let i = 0; i < steps; i++) {
-      await send("Input.dispatchMouseEvent", { type: "mouseWheel", x: at.x, y: at.y, deltaX: 0, deltaY: Math.sign(dy) * 60 });
+      await mouse({ type: "mouseWheel", x: at.x, y: at.y, deltaX: 0, deltaY: Math.sign(dy) * 60 });
       await sleep(28);
     }
   };
   const type = async (text) => { await send("Input.insertText", { text }); };
   const goto = async (url, wait = 5000) => { await send("Page.navigate", { url }); await sleep(wait); await ensureCursor(); };
-  const shot = async (path) => { const r = await send("Page.captureScreenshot", { format: "png" }); writeFileSync(path, Buffer.from(r.result.data, "base64")); };
+  // one screenshot at a time: two at once leave Chrome scaling every later mouse event by 1/deviceScaleFactor
+  let shooting = Promise.resolve();
+  const capture = (params) => (shooting = shooting.then(async () => {
+    inflight = true;
+    try { return await send("Page.captureScreenshot", params); } finally { inflight = false; }
+  }));
+  const shot = async (path) => { const r = await capture({ format: "png" }); writeFileSync(path, Buffer.from(r.result.data, "base64")); };
   const labels = async () => evaluate(`[...document.querySelectorAll('flt-semantics[aria-label], [role=button], button, a')].map(e => { const b = e.getBoundingClientRect(); return b.width > 2 ? Math.round(b.x)+','+Math.round(b.y)+' '+(e.getAttribute('aria-label')||e.textContent||'').trim().slice(0,70) : null }).filter(Boolean)`);
 
   // screencast: frames arrive with timestamps; written to disk for ffmpeg
   // paused time is cut out of the video, so page loads and off-camera setup never show
   const frames = [];
   let recording = false, offset = 0, pausedAt = 0, latest = null;
+  const keep = (t, data) => {
+    if (!frameDir) return frames.push({ t, data });
+    const file = join(frameDir, `${String(frames.length).padStart(5, "0")}.jpg`);
+    writeFileSync(file, Buffer.from(data, "base64"));
+    frames.push({ t, file });
+  };
   listeners.push(async (m) => {
     if (m.method !== "Page.screencastFrame") return;
     send("Page.screencastFrameAck", { sessionId: m.params.sessionId });
     latest = m.params.data;
-    if (recording) frames.push({ t: m.params.metadata.timestamp - offset, data: m.params.data });
+    if (recording) keep(m.params.metadata.timestamp - offset, m.params.data);
   });
   const now = () => Date.now() / 1000;
   // the screencast skips some repaints (e.g. snack bars), so fill any quiet gap with a real screenshot
@@ -132,10 +154,8 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
       // screenshots only: the screencast stream drops overlay layers such as snack bars
       if (recording && !busy) {
         const t = now();
-        inflight = true;
-        const r = await send("Page.captureScreenshot", { format: "jpeg", quality: 88 });
-        inflight = false;
-        if (recording) frames.push({ t: t - offset, data: r.result.data });
+        const r = await capture({ format: "jpeg", quality: 88 });
+        if (recording) keep(t - offset, r.result.data);
         await sleep(25); // let the page paint between captures
       } else await sleep(15);
     }
@@ -147,8 +167,8 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
   const resume = async () => {
     offset += now() - pausedAt; recording = true;
     // a fresh frame right away, so the cut lands on the new screen
-    const r = await send("Page.captureScreenshot", { format: "jpeg", quality: 90 });
-    frames.push({ t: now() - offset, data: r.result.data });
+    const r = await capture({ format: "jpeg", quality: 90 });
+    keep(now() - offset, r.result.data);
   };
   const elapsed = () => (frames.length ? frames[frames.length - 1].t - frames[0].t : 0);
   const mark = () => (recording ? now() - offset : pausedAt - offset);
@@ -158,6 +178,6 @@ export async function launch({ width = 1440, height = 900, scale = 1, port = 934
     return { frames, end };
   };
 
-  return { send, evaluate, find, click, clickAt, moveTo, wheel, type, goto, shot, labels, startRec, stopRec, pause, resume, mark, elapsed, ensureCursor,
+  return { send, evaluate, find, click, clickAt, moveTo, mouse, wheel, type, goto, shot, labels, startRec, stopRec, pause, resume, mark, elapsed, ensureCursor,
     close: () => { ws.close(); chrome.kill(); } };
 }

@@ -58,8 +58,27 @@ export function clearancePayload(body: ClearanceBody, payment: Payment) {
 
 export type RunClearance = (payload: ReturnType<typeof clearancePayload>, onLine: (line: string) => void) => Promise<CreRun>;
 
+/** A public API (RugCheck, GoPlus, DexScreener) timing out on a read: the workflow stopped before it wrote anything. */
+const upstreamTimeout = (e: unknown) => e instanceof Error && /Get "https?:\/\/[^"]+": context deadline exceeded/.test(e.message);
+
+/**
+ * One more run when an upstream read timed out. Payment settles only after a 2xx answer, so the trader still pays once;
+ * any other failure (a reverted write, a bad payload) is never retried.
+ */
+export const retryTransient =
+  (run: RunClearance): RunClearance =>
+  async (payload, onLine) => {
+    try {
+      return await run(payload, onLine);
+    } catch (e) {
+      if (!upstreamTimeout(e)) throw e;
+      onLine("↻ an upstream API timed out before anything was written; running the clearance once more");
+      return run(payload, onLine);
+    }
+  };
+
 /** Runs the clearance workflow on the target from the environment (local-simulation until DeskLedger is deployed). */
-export const runClearanceWithCre: RunClearance = (payload, onLine) => {
+export const runClearanceWithCre: RunClearance = retryTransient((payload, onLine) => {
   const opts: CreRunOptions = {
     workflow: "clearance",
     payload,
@@ -68,4 +87,4 @@ export const runClearanceWithCre: RunClearance = (payload, onLine) => {
     onLine,
   };
   return runCre(opts);
-};
+});

@@ -45,6 +45,9 @@ export const traderAddress = (k: TraderKey): Address => privateKeyToAccount(keyO
 
 export const newRunId = (scenarioId: string) => `${scenarioId}-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 
+/** Demo pacing: a pause after each beat, so a viewer sees its result before the next trade starts (default none). */
+const beatPause = () => new Promise((r) => setTimeout(r, Number(process.env.BEAT_PAUSE_MS ?? 0)));
+
 export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?: string[], runId = newRunId(scenarioId)) {
   const scenario = loadScenario(scenarioId);
   const beats = beatIds ?? scenario.beats.map((b) => b.id);
@@ -105,6 +108,7 @@ export async function runScenario(deps: RunnerDeps, scenarioId: string, beatIds?
           beatId,
         ),
       );
+      await beatPause();
     }
 
     // Surveillance looks back over what this run recorded; any alert goes to court.
