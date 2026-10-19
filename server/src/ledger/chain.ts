@@ -20,7 +20,11 @@ export function ledgerReader(client: PublicClient, ledger: Address): LedgerReade
       const receipt = await client.waitForTransactionReceipt({ hash: txHash });
       return parseEventLogs({ abi: deskLedgerAbi, logs: receipt.logs })
         .filter((l) => l.address.toLowerCase() === ledger.toLowerCase())
-        .map((l) => ({ event: l.eventName, args: l.args as Record<string, unknown> }));
+        // amounts arrive as bigint; as decimal strings the events can go on the event stream and into trails
+        .map((l) => ({
+          event: l.eventName,
+          args: Object.fromEntries(Object.entries(l.args).map(([k, v]) => [k, typeof v === "bigint" ? v.toString() : v])),
+        }));
     },
     autoApproveActive: () => client.readContract({ address: ledger, abi: deskLedgerAbi, functionName: "autoApproveActive" }),
     async licenceActive(trader) {
