@@ -12,9 +12,11 @@ export function gatesFor(t: Trade): Gate[] {
   const c = t.clearance;
   const chief = t.chief?.outcome;
   const checkDone = !!c?.verdict || !!c?.failed;
+  // the check ran, then the fee did not settle: the trader was not charged and never got the result
+  const unsettled = !!c?.failed && !!c?.verdict;
   const stoppedAtCheck = c?.verdict === "BLOCKED" || !!c?.failed;
 
-  const fee: Gate = { key: "fee", name: "x402 fee", icon: CircleDollarSign, ...(!c ? { state: "idle", label: "—" } : c.failed ? { state: "skip", label: "not charged" } : c.verdict ? { state: "ok", label: "$0.01 paid" } : { state: "ok", label: "$0.01 authorized" }) };
+  const fee: Gate = { key: "fee", name: "x402 fee", icon: CircleDollarSign, ...(!c ? { state: "idle", label: "—" } : unsettled ? { state: "bad", label: "not settled" } : c.failed ? { state: "skip", label: "not charged" } : c.verdict ? { state: "ok", label: "$0.01 paid" } : { state: "ok", label: "$0.01 authorized" }) };
 
   const check: Gate = {
     key: "check",
@@ -23,7 +25,7 @@ export function gatesFor(t: Trade): Gate[] {
     href: c?.txHash ? txUrl(c.txHash) : undefined,
     ...(!c
       ? { state: "idle", label: "—" }
-      : c.failed
+      : c.failed && !c.verdict
         ? { state: "bad", label: "could not run" }
         : c.verdict === "CLEARED"
           ? { state: "ok", label: "cleared" }

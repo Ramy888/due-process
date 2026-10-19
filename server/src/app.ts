@@ -3,12 +3,12 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { timingSafeEqual } from "node:crypto";
 import { relative } from "node:path";
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import type { FacilitatorClient } from "@x402/core/server";
 import { ROOT } from "./env.js";
 import { getEvidence } from "./evidence.js";
 import { clearanceBody, clearancePayload, type ClearanceResult, type RunClearance } from "./clearance.js";
-import { deskPaywall, paymentOf } from "./x402.js";
+import { deskPaywall, paymentOf, settleFailureOf } from "./x402.js";
 import { emit, recent, subscribe, type DeskEvent } from "./bus.js";
 import { verifyTrail } from "./agents/trail.js";
 import type { DeskStore } from "./store.js";
@@ -89,6 +89,24 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ entries, verification: verifyTrail(entries) });
   });
 
+  // The fee settles after the check has run. When settling fails (the facilitator says no, times out or answers
+  // nonsense) the trader gets an error instead of the result; say why on the event stream, or the trade card would
+  // wait on the Desk Chief forever.
+  const checked = new WeakMap<Request, Hex>();
+  app.use("/clearance", async (c, next) => {
+    await next();
+    const clearanceId = checked.get(c.req.raw);
+    if (!clearanceId || c.res.status < 400) return;
+    const failed = settleFailureOf(c.res);
+    const reason = failed?.errorReason ?? "no reason given";
+    const error = !failed
+      ? `the payment service did not confirm the $0.01 fee (HTTP ${c.res.status}), so the result was withheld`
+      : failed.transaction
+        ? `the $0.01 fee did not settle (${reason}; transaction ${failed.transaction} may still land), so the result was withheld`
+        : `the $0.01 fee did not settle (${reason}), so nothing was charged and the result was withheld`;
+    emit({ type: "clearance.failed", clearanceId, error });
+  });
+
   // Paid per call. Any non-2xx answer below means the facilitator never settles, so the trader is not charged.
   app.use(deskPaywall({ payTo: deps.payTo, facilitator: deps.facilitator, sellerOf: (id) => deps.store.signal(id)?.sellerAddress }));
 
@@ -120,6 +138,7 @@ export function createApp(deps: AppDeps): Hono {
       }
       const log = relative(ROOT, run.logPath);
       emit({ type: "clearance.result", result, log });
+      checked.set(c.req.raw, clearanceId);
       return c.json({ ...result, log });
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);

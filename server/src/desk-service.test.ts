@@ -66,4 +66,25 @@ describe("desk UI API", () => {
     expect(news).toMatchObject({ holdingsUsd: { WIF: 200 }, spentUsd: 200, approved: 1, clearanceFeesUsd: 0.01, licence: "active", bondUsd: 1 });
     expect(news.pnlUsd).toBeCloseTo(200 * (1.93 / 1.84 - 1), 2);
   });
+
+  it("does not count a fee that was not charged (a check that failed, or a fee that did not settle)", async () => {
+    const started = (n: string) =>
+      emit({ type: "clearance.started", clearanceId: `0x${n.repeat(64)}`, trader: traderAddress("TRADER_WHALE"), chain: "solana", token: "WIF", notionalE6: "300000000" });
+    const service = new DeskService({
+      store: new DeskStore(":memory:"),
+      deskUrl: "http://desk",
+      paymentsMode: "offline",
+      ledgerMode: "local-simulation",
+      run: async (deps, _scenario, _beats, runId) => {
+        started("1");
+        emit({ type: "clearance.failed", clearanceId: `0x${"1".repeat(64)}`, error: "the $0.01 fee did not settle (unexpected_settle_error)" });
+        started("2");
+        return { runId: runId!, outcomes: [], book: deps.book!, alerts: [], case: undefined, enforcement: undefined };
+      },
+    });
+    service.start("frog-day");
+    await tick();
+    const whale = service.state().traders.find((t) => t.key === "TRADER_WHALE");
+    expect(whale?.clearanceFeesUsd).toBeCloseTo(0.01, 6);
+  });
 });

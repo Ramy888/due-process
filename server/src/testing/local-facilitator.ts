@@ -6,8 +6,16 @@ import { BASE_SEPOLIA } from "../x402.js";
 
 type Authorization = { from: string; to: string; value: string; validAfter: string; validBefore: string; nonce: string };
 
-export function localFacilitator(): FacilitatorClient & { settled: Authorization[] } {
+/** A settlement the facilitator reports as failed; `transaction` set means it sent one that may still land. */
+export type SettleFailure = { errorReason: string; transaction?: string };
+
+/**
+ * `failSettles`: the first settlements fail like this, in order (the public facilitator does, now and then); an Error
+ * in the list is thrown instead, the way a facilitator timeout surfaces.
+ */
+export function localFacilitator({ failSettles = [] }: { failSettles?: (SettleFailure | Error)[] } = {}): FacilitatorClient & { settled: Authorization[] } {
   const settled: Authorization[] = [];
+  const failures = [...failSettles];
   return {
     settled,
     async getSupported() {
@@ -39,6 +47,9 @@ export function localFacilitator(): FacilitatorClient & { settled: Authorization
     },
     async settle(payment, req) {
       const a = (payment.payload as { authorization: Authorization }).authorization;
+      const failure = failures.shift();
+      if (failure instanceof Error) throw failure;
+      if (failure) return { success: false, transaction: "", ...failure, network: req.network, payer: a.from };
       settled.push(a);
       return { success: true, transaction: `0x${"ab".repeat(32)}`, network: req.network, payer: a.from };
     },

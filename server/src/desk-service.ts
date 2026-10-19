@@ -33,6 +33,8 @@ export class DeskService {
   private status: RunStatus = { runId: null, scenarioId: null, status: "idle", error: null };
   private book = new DeskBook();
   private counters = new Map<TraderKey, Counters>();
+  /** Who paid for each clearance still in flight, so a fee that was not charged can be taken back off. */
+  private feeOf = new Map<string, TraderKey>();
   private caseFile: CaseFile | undefined;
   private enforcement: Enforcement | undefined;
   private readonly byAddress: Map<string, TraderKey>;
@@ -52,6 +54,7 @@ export class DeskService {
     this.status = { runId, scenarioId, status: "running", error: null };
     this.book = new DeskBook();
     this.counters = new Map();
+    this.feeOf = new Map();
     this.caseFile = undefined;
     this.enforcement = undefined;
     const run = this.deps.run ?? runScenario;
@@ -77,7 +80,15 @@ export class DeskService {
     if (this.status.status !== "running") return;
     if (e.type === "clearance.started") {
       const k = this.byAddress.get(e.trader.toLowerCase());
-      if (k) this.counter(k).clearanceFeesUsd += usd(CLEARANCE_PRICE);
+      if (k) {
+        this.counter(k).clearanceFeesUsd += usd(CLEARANCE_PRICE);
+        this.feeOf.set(e.clearanceId, k);
+      }
+    } else if (e.type === "clearance.failed") {
+      // a check that could not run, or a fee that did not settle, was not charged
+      const k = this.feeOf.get(e.clearanceId);
+      if (k) this.counter(k).clearanceFeesUsd -= usd(CLEARANCE_PRICE);
+      this.feeOf.delete(e.clearanceId);
     } else if (e.type === "signal.sold") {
       const buyer = this.byAddress.get(e.buyer.toLowerCase());
       const seller = this.byName.get(e.seller);

@@ -5,6 +5,8 @@
 import type { MiddlewareHandler } from "hono";
 import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { HTTPFacilitatorClient, type FacilitatorClient } from "@x402/core/server";
+import { decodePaymentResponseHeader } from "@x402/core/http";
+import type { SettleResponse } from "@x402/core/types";
 import { ExactEvmScheme as ExactEvmServerScheme } from "@x402/evm/exact/server";
 import { ExactEvmScheme } from "@x402/evm";
 import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
@@ -57,6 +59,18 @@ export function paymentOf(paymentSignatureHeader: string | undefined): Payment |
   if (!paymentSignatureHeader) return undefined;
   const a = JSON.parse(Buffer.from(paymentSignatureHeader, "base64").toString("utf8"))?.payload?.authorization;
   return a?.from && a?.nonce ? { payer: a.from, nonce: a.nonce } : undefined;
+}
+
+/** The facilitator's answer when a fee did not settle after the handler ran (a 402 carrying PAYMENT-RESPONSE). */
+export function settleFailureOf(res: Response): SettleResponse | undefined {
+  const header = res.headers.get("payment-response");
+  if (res.status !== 402 || !header) return undefined;
+  try {
+    const settle = decodePaymentResponseHeader(header);
+    return settle.success === false ? settle : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** fetch that answers 402 challenges by signing from this trader's key. */

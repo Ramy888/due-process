@@ -55,7 +55,7 @@ subscribe((e) => {
     case "signal.sold":
       return console.log(`   signal ${e.signalId} sold to ${e.buyer}`);
     case "clearance.failed":
-      return console.log(`   clearance could not run: ${e.error.split("\n")[0]}`);
+      return console.log(`   clearance failed: ${e.error.split("\n")[0]}`);
     case "clearance.result":
       return console.log(`   clearance ${e.result.verdict} ${JSON.stringify(e.result.hits.map((h) => h.code))} (${e.log})`);
     case "chief.decision":

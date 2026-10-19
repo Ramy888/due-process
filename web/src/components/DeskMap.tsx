@@ -1,7 +1,7 @@
 // The hero: the desk's traders with their budgets, who is trading right now, and how far their trade got through the
 // five gates. The trades panel beside it tells the same story in detail.
 import { ArrowDown, Gavel, Loader, CircleSlash } from "lucide-react";
-import { usd, type Approval, type DeskState, type Floor, type Trade } from "../desk";
+import { usd, type Approval, type BeatCard, type DeskState, type Floor, type Trade } from "../desk";
 import { AgentRow, ChiefChip } from "./Agents";
 import { Decide } from "./Approvals";
 import { gatesFor, type Gate, type GateState } from "./Gates";
@@ -27,13 +27,14 @@ const frontier = (gates: Gate[]) => {
   return last;
 };
 
-function caption(name: string, t: Trade | undefined, gates: Gate[], coSignUsd: number): string {
-  if (!t) return "Press Run to start the Frog Day scenario.";
+function caption(name: string, beat: BeatCard | undefined, t: Trade | undefined, gates: Gate[], coSignUsd: number): string {
+  if (!t) return !beat ? "Press Run to start the Frog Day scenario." : beat.done ? `${name} did not trade.` : `${name} is reading its feed.`;
   const d = t.decision;
   if (d.action === "pass") return `${name} looked and decided not to trade.`;
   const want = `${name} wants to ${d.side} ${d.symbol} for ${usd(d.notionalUsd)}.`;
-  const [, check, chief, you, ledger] = gates;
+  const [fee, check, chief, you, ledger] = gates;
   if (check.state === "running") return `${want} Its $0.01 fee is authorized; Chainlink is checking the token.`;
+  if (fee.label === "not settled") return `${want} Its $0.01 fee did not settle, so the result was withheld.`;
   if (check.label === "blocked") return `${want} Chainlink blocked it; the block is on the record.`;
   if (check.state === "bad") return `${want} The check could not run, so nothing was charged.`;
   if (chief.state === "running") return `${want} Cleared. The Desk Chief is reviewing it against the whole desk.`;
@@ -123,7 +124,7 @@ export function DeskMap({ state, floor, onCourt }: { state: DeskState; floor: Fl
           </div>
 
           <p className="min-h-[2.5rem] text-center text-sm text-white/90 sm:text-base" aria-live="polite">
-            {courtLive ? courtCaption : caption(name, trade, gates, state.desk.coSignUsd)}
+            {courtLive ? courtCaption : caption(name, beat, trade, gates, state.desk.coSignUsd)}
           </p>
           {cosign && !courtLive && (
             <div className="flex justify-center">

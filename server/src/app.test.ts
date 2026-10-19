@@ -6,10 +6,12 @@ import { ledgerTokenFor, type RunClearance } from "./clearance.js";
 import { subscribe, type DeskEvent } from "./bus.js";
 import { getEvidence } from "./evidence.js";
 import { ROOT } from "./env.js";
-import { localFacilitator } from "./testing/local-facilitator.js";
+import { localFacilitator, type SettleFailure } from "./testing/local-facilitator.js";
 import { payingFetch } from "./x402.js";
+import { FacilitatorTimeoutError } from "@x402/core/server";
 import { DeskStore } from "./store.js";
 import { paidSignal } from "./scenario/paid-signal.js";
+import { paidClearance } from "./scenario/paid-clearance.js";
 
 const DESK: Address = "0x4fAa2A586949D88C7d857a737Ace2C929dEb4f11";
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -17,8 +19,8 @@ const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
 type Payload = Parameters<RunClearance>[0];
 
 /** Desk server with an offline facilitator and a CRE stand-in that answers like the clearance workflow. */
-function desk(cre: (p: Payload, onLine: (l: string) => void) => unknown = (p) => cleared(p)) {
-  const facilitator = localFacilitator();
+function desk(cre: (p: Payload, onLine: (l: string) => void) => unknown = (p) => cleared(p), failSettles: (SettleFailure | Error)[] = []) {
+  const facilitator = localFacilitator({ failSettles });
   const calls: Payload[] = [];
   const runClearance: RunClearance = async (payload, onLine) => {
     calls.push(payload);
@@ -51,6 +53,51 @@ const cleared = (p: Payload) => ({
 const events: DeskEvent[] = [];
 const unsubscribe = subscribe((e) => events.push(e));
 afterEach(() => void (events.length = 0));
+
+describe("a fee that does not settle after the check ran", () => {
+  const body = { chain: "solana", token: BONK, notionalE6: "500000000", evidenceId: "ev-test" } as const;
+
+  it("answers 402 and tells the desk why, so the trade card does not wait on the Chief forever", async () => {
+    const d = desk(undefined, [{ errorReason: "unexpected_settle_error" }]);
+    const res = await d.pay(body);
+
+    expect(res.status).toBe(402);
+    expect(d.calls).toHaveLength(1);
+    expect(d.facilitator.settled).toEqual([]);
+    const failed = events.find((e) => e.type === "clearance.failed");
+    expect(failed).toMatchObject({ clearanceId: d.calls[0].clearanceId });
+    expect(failed && "error" in failed && failed.error).toMatch(/did not settle \(unexpected_settle_error\).*nothing was charged/);
+  });
+
+  it("pays once more when the facilitator sent nothing, and the desk is paid once", async () => {
+    const d = desk(undefined, [{ errorReason: "unexpected_settle_error" }]);
+    const key = generatePrivateKey();
+    const out = await paidClearance("http://desk", d.fetchImpl, () => key)("TRADER_WHALE", body);
+
+    expect(out.verdict).toBe("FLAGGED");
+    expect(d.calls).toHaveLength(2);
+    expect(out.clearanceId).toBe(d.calls[1].clearanceId);
+    expect(d.facilitator.settled.map((a) => a.nonce)).toEqual([d.calls[1].clearanceId]);
+  });
+
+  it("still tells the desk when the facilitator times out (a 502 with no settlement answer), and never pays again", async () => {
+    const d = desk(undefined, [new FacilitatorTimeoutError("settle", 90_000)]);
+    const key = generatePrivateKey();
+    await expect(paidClearance("http://desk", d.fetchImpl, () => key)("TRADER_WHALE", body)).rejects.toThrow(/HTTP 502/);
+
+    expect(d.calls).toHaveLength(1);
+    const failed = events.find((e) => e.type === "clearance.failed");
+    expect(failed).toMatchObject({ clearanceId: d.calls[0].clearanceId });
+    expect(failed && "error" in failed && failed.error).toMatch(/did not confirm the \$0\.01 fee \(HTTP 502\)/);
+  });
+
+  it("never pays again when the facilitator sent a transaction, since it may still land", async () => {
+    const d = desk(undefined, [{ errorReason: "transaction_failed", transaction: `0x${"ee".repeat(32)}` }]);
+    const key = generatePrivateKey();
+    await expect(paidClearance("http://desk", d.fetchImpl, () => key)("TRADER_WHALE", body)).rejects.toThrow(/did not settle.*transaction_failed/);
+    expect(d.calls).toHaveLength(1);
+  });
+});
 
 describe("POST /clearance", () => {
   it("runs the workflow for the trader who paid, keyed by the payment nonce, then settles the fee", async () => {
