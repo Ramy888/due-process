@@ -30,6 +30,23 @@ describe("retryTransient", () => {
     expect(lines.join("\n")).toMatch(/timed out.*once more/);
   });
 
+  it("also runs once more when RugCheck could not build its report (HTTP 400, 2026-10-20)", async () => {
+    const busy = new CreRunError(
+      "cre clearance failed (exit 1): workflow execution failed: [2]Unknown: GET https://api.rugcheck.xyz/v1/tokens/7GCi/report/summary failed: HTTP 400",
+      "x.log",
+    );
+    const r = runner(busy);
+    await expect(retryTransient(r.run)(payload, () => {})).resolves.toBe(ok);
+    expect(r.calls()).toBe(2);
+  });
+
+  it("never retries an HTTP 400 from any other API (it would mask a bad request)", async () => {
+    const bad = new CreRunError("cre clearance failed (exit 1): workflow execution failed: [2]Unknown: GET https://api.dexscreener.com/x failed: HTTP 400", "x.log");
+    const r = runner(bad);
+    await expect(retryTransient(r.run)(payload, () => {})).rejects.toBe(bad);
+    expect(r.calls()).toBe(1);
+  });
+
   it("gives up after the second timeout", async () => {
     const r = runner(timeout, timeout);
     await expect(retryTransient(r.run)(payload, () => {})).rejects.toBe(timeout);

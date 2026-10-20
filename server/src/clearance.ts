@@ -60,10 +60,12 @@ export type RunClearance = (payload: ReturnType<typeof clearancePayload>, onLine
 
 /** A public API (RugCheck, GoPlus, DexScreener) timing out on a read: the workflow stopped before it wrote anything. */
 const upstreamTimeout = (e: unknown) => e instanceof Error && /Get "https?:\/\/[^"]+": context deadline exceeded/.test(e.message);
+/** RugCheck answering 400 "unable to generate report" for a token it reported a minute earlier (2026-10-20). */
+const rugcheckBusy = (e: unknown) => e instanceof Error && /GET https:\/\/api\.rugcheck\.xyz\/\S+ failed: HTTP 400/.test(e.message);
 
 /**
- * One more run when an upstream read timed out. Payment settles only after a 2xx answer, so the trader still pays once;
- * any other failure (a reverted write, a bad payload) is never retried.
+ * One more run when an upstream read timed out or RugCheck was busy. Payment settles only after a 2xx answer, so the
+ * trader still pays once; any other failure (a reverted write, a bad payload) is never retried.
  */
 export const retryTransient =
   (run: RunClearance): RunClearance =>
@@ -71,8 +73,9 @@ export const retryTransient =
     try {
       return await run(payload, onLine);
     } catch (e) {
-      if (!upstreamTimeout(e)) throw e;
-      onLine("↻ an upstream API timed out before anything was written; running the clearance once more");
+      if (!upstreamTimeout(e) && !rugcheckBusy(e)) throw e;
+      const why = upstreamTimeout(e) ? "an upstream API timed out" : "RugCheck could not build its report";
+      onLine(`↻ ${why} before anything was written; running the clearance once more`);
       return run(payload, onLine);
     }
   };
