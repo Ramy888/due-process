@@ -11,6 +11,8 @@ on recorded evidence, and a human approves the sanctions before they are written
 > **Simulated.** The agents make practice trades with paper money. Influencer personas and news are synthetic. Built for
 > the BLI Legal Tech Hackathon 2 (LegalTech & RegTech). Not financial or legal advice.
 
+**Demo video (3 min, recorded live on Base Sepolia):** https://youtu.be/ttAvKylyC1g
+
 ## What happens in the demo
 
 | Beat | What you see | What enforces it |
@@ -152,6 +154,23 @@ suspended licences and the desk top bonds back up, and the Chief's auto-approve 
 token data, the gateway running CRE end to end, live Mandate Compiler output, the Chief's four ledger paths on a local
 chain, the ledger-truth check (a trade the contract rejected is reported as rejected), EIP-712 digests matching the
 contract, the full scenario and the court.
+
+**The take in the video, on Base Sepolia** (DeskLedger
+[`0xcB6f…687C`](https://sepolia.basescan.org/address/0xcB6fAEd8B78ED4f3CEfA85D4D384804bB866687C), 2026-10-19):
+
+| What | Transaction |
+|---|---|
+| `$FROG` blocked by the clearance workflow (coordinated shill, holder concentration, mint authority) | [`0xac7bb8b1…`](https://sepolia.basescan.org/tx/0xac7bb8b1e8fd4806e4caef2189dad07cc2c7f8a5bef39f94f1d40cc7a9118630) |
+| News Checker's $200 WIF, signed by the Chief and co-signed by the human | [`0x40110423…`](https://sepolia.basescan.org/tx/0x401104236889498d1197a8eb6e68e9da0f7087c77ccc94e3fd3219655b70c172) |
+| Dip Buyer's $200 WIF, same path | [`0x584a64d9…`](https://sepolia.basescan.org/tx/0x584a64d933fd995471a40efcbe1863b5eff69949f3c2e4da8aadf7e584e96bd6) |
+| Meme Hunter's $90 POPCAT pieces, auto-approved with no review | [`0x8cfeb166…`](https://sepolia.basescan.org/tx/0x8cfeb166ea51470898b8aedde4ffa7f70162de6e335697617b37741aaf36d8ca), [`0xc441f7a4…`](https://sepolia.basescan.org/tx/0xc441f7a4b997bceab7f40f0d03692d7a9ca4305dfeb107cd883b4d3e5d14465d) |
+| Judgment: Meme Hunter slashed $0.60 and suspended | [`0x3e5622ee…`](https://sepolia.basescan.org/tx/0x3e5622eec6c1bb683ece8bf85233742154ba473e7c2e3edf4b750a87d1db723c) |
+| Judgment: Desk Chief slashed $0.25, auto-approve revoked for 24 h | [`0xf9eb6f3a…`](https://sepolia.basescan.org/tx/0xf9eb6f3a4b4865953204eea790450ee65d7d70bee5a1ac555e7fd2a3b52e28da) |
+
+In that take the public x402 facilitator did not settle two $0.01 fees (the Whale Tracker's and the first POPCAT
+piece's), so those trades stopped there and nothing was charged; the desk now shows such a fee as "not settled". The
+Chief's refusal of the Whale Tracker's trade was recorded in a later run:
+[`0xfd6e6a21…`](https://sepolia.basescan.org/tx/0xfd6e6a21aae971813ae65c8da6feb8c42c2d1f09b89c20555c2dbddd2fd927e9).
 
 ## Security notes
 
