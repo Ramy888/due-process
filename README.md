@@ -142,8 +142,9 @@ npm run build && DEPLOYMENT=base-sepolia CRE_CLEARANCE_TARGET=base-sepolia CRE_D
   npm start -w server
 ```
 
-`npm run reset` clears local state; `npm run reset -- --redeploy` also redeploys (a judgment's 24-hour revocation and a
-suspended licence cannot be rolled back on-chain).
+`npm run reset` clears local state; `npm run reset -- --redeploy` also redeploys. Without redeploying, a judgment's
+effects are undone the way the contract allows: `npx -w server tsx ../scripts/restore-desk.ts` has the human reinstate
+suspended licences and the desk top bonds back up, and the Chief's auto-approve returns by itself after 24 hours.
 
 ## Evidence
 
